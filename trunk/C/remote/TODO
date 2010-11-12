@@ -1,0 +1,8 @@
+Nice to have but not essential things:
+
+ * tooltip: To show a tooltip message using the E widgets, a simple window popuped with a message inside it, a feature missing from e16 :), we can see in the future about use that just like a zenity* thing (why ?: very fast to load, light as hell since is part of e17, not bloated, nice-looking, integrated)
+
+* I think that we dont really need to "mix" the enlightenment_remote tool that i wrote for E and this one, this one could be a lot more complex and featured with things that the normal E users will don't need, so in order to be a 'replacement' of the other tool, we need to support the other features available on the new enlightenment_remote (see its source code, is a script, update E sources), they are just a few ones, about module management and profile management basically
+
+ * Shutdown feature, im just going to the bed and leaving a process running, i have liked that the computer will directly shutdown after that it finishes :) but there's not the option on eremote :/, could be nice to have it :)
+

@@ -1,0 +1,22 @@
+#!/opt/bin/bash
+
+#This is V.01 of RapidGet_SH
+username=''
+password=''
+
+CURL='/opt/bin/wget -qO -'
+WGET='/opt/bin/axel -n 4 -s 432000 -a '
+
+for RS in `cat $1`
+do
+
+fileid=`echo $RS |awk 'BEGIN { FS ="/" } ; { print $5 }'`
+filename=`echo $RS |awk 'BEGIN { FS ="/" } ; { print $6 }'`
+
+get_hostname=`$CURL "http://api.rapidshare.com/cgi-bin/rsapi.cgi?sub=download_v1&try=1&fileid=${fileid}&filename=${filename}&login=${username}&password=${password}"`
+hostname=`echo $get_hostname |sed 's/DL://g' |awk 'BEGIN { FS ="," } ; { print $1 }'`
+download="http://$hostname/cgi-bin/rsapi.cgi?sub=download_v1&dlauth=0&bin=1&fileid=${fileid}&filename=${filename}&login=${username}&password=${password}"
+
+$WGET $download -o $filename
+
+done
