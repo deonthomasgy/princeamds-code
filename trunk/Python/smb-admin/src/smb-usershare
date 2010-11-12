@@ -1,0 +1,601 @@
+#!/usr/bin/python
+#fixed the bug with not loading when ran by root.
+#need to fix password change functions for root user.
+##This program was designed to assist users
+##in adding, modifiying and removing usershares on a samba server which allows such access.
+##It also proveds a GUI for the user to change their password in.
+##Copyright (C) <2007>  <David Braker>
+##    This program is free software; you can redistribute it and/or modify
+##    it under the terms of the GNU General Public License as published by
+##    the Free Software Foundation; either version 2 of the License, or
+##    (at your option) any later version.
+
+##    This program is distributed in the hope that it will be useful,
+##    but WITHOUT ANY WARRANTY; without even the implied warranty of
+##    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##    GNU General Public License for more details.
+
+##    You should have received a copy of the GNU General Public License along
+##    with this program; if not, write to the Free Software Foundation, Inc.,
+##    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+##On Debian GNU/Linux system you can find a copy of this
+##license in `/usr/share/common-licenses/GPL'.
+
+#
+#
+#
+###README   the command net usershare list -l    will list all the usershares and is needed when root is deleting one
+### the usershare  conf files are located in /var/lib/samba/usershares/ and you can get owner information from there 
+#
+#
+#
+import pygtk
+pygtk.require('2.0')
+import configobj,gtk,os,time,sys,gettext,subprocess
+APP = 'smb-usershare'
+DIR = '/usr/share/locale/'
+gettext.bindtextdomain(APP, DIR)
+gettext.textdomain(APP)
+_ = gettext.gettext
+VERSION="0.2.2"
+if "-V" in sys.argv:
+	print "Smb-Usershare version: ",VERSION
+	sys.exit()
+if "-h" in sys.argv or "--help" in sys.argv:
+	print "Usage:"
+	print "\t-h \t"+_("Display this message")
+	print "\t-v \t"+_("Verbose mode")
+	print "\t-V \t"+_("Diplay Version information.")
+	print "\t-p \t"+_("Start in Add Share mode with the path")
+	print "\t\t"+_("filled in with the path provided.")
+	print "\t\t"+_("Example:")
+	print ""
+	print "\t\t"+_("smb-usershare -p /home/user/Music")
+	print ""
+	sys.exit()
+if "-v" in sys.argv:
+	print "verbose mode"
+else:
+	sys.stdout=open("/dev/null", 'w')
+	sys.stdin=open("/dev/null", 'r')
+START_MSG=None
+usr_sh_dir="/var/lib/samba/usershares"
+if os.access("/var/lib/samba/usershares",os.F_OK):
+	if os.access(usr_sh_dir,os.X_OK) and os.access(usr_sh_dir,os.W_OK) and os.access(usr_sh_dir,os.R_OK):
+		print "RWX ACCESS"
+	else:
+		START_MSG=_("Your admin needs to give you read, write, and execute access to the directory '/var/lib/samba/usershares' in order for you to be able to create shares as user.")
+else:
+	START_MSG=_("Your admin needs to create the directory '/var/lib/samba/usershares' and give you read, write, and execute access in order for you to be able to create shares as user.")
+share_list=[]
+netusl=subprocess.Popen("net usershare list",shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+output=netusl.stdout.readlines()
+netusl.stdout.close()
+error_out=netusl.stderr.readlines()
+netusl.stderr.close()
+for line in output:
+	share_list.append(line.strip())
+for line in error_out:
+	if "net usershare: usershares are currently disabled" in line:
+		print "Usershare disabled"
+		START_MSG=line+"\n"+_("Ask your administrator to set 'usershare max shares' in the 'global' section of smb.conf to a value greater than 0")		
+#		sys.exit()
+class GUI(gtk.Window):
+	def __init__(self):
+		gtk.Window.__init__(self)
+		##Main Layout part I##
+		self.addsharbox=gtk.VBox()
+		self.sharbox_list=gtk.VBox()
+		self.sharbox=gtk.VBox()
+		self.sharbox.add(self.sharbox_list)
+		##End Main Layout part I##
+		##Interior share layout##
+		sh_lbl=gtk.Label(_("Share Name:"))
+		self.sh_entry=gtk.Entry()
+		comment_lbl=gtk.Label(_("Comment:"))
+		self.comment_entry=gtk.Entry()
+		local_lbl=gtk.Label (_("Location: "))
+		self.local_entry=gtk.Entry()
+		self.local_btn=gtk.Button(stock=gtk.STOCK_OPEN)
+		self.local_btn.get_children()[0].get_children()[0].get_children()[1].set_label(_("Browse"))
+		self.local_btn.connect("clicked", self.folder_sel)
+		self.public_sel= gtk.CheckButton(_("Open To the Public (Guest access)"),True)
+		self.public_sel.set_tooltip_text(_("If this is unchecked, then make sure you have a Samba user enabled and the password has been set. Otherwise, the share will be in accessible."))
+
+		self.sharelist = gtk.ListStore(int,str,str,str)
+		self.sharetreeview = gtk.TreeView(self.sharelist)
+		
+		self.sharescrolledwindow = gtk.ScrolledWindow()
+		self.sharescrolledwindow.set_policy(True, True)
+		self.sharescrolledwindow.add(self.sharetreeview)
+		self.sharemodel = self.sharetreeview.get_selection()
+		self.sharemodel.set_mode(gtk.SELECTION_SINGLE)
+		self.shareR = gtk.CellRendererText()
+		self.sharetreeview.insert_column_with_attributes(0, _("Shared Folders"), self.shareR, text=1)
+		self.sharetreeview.insert_column_with_attributes(1, _("Comment"), self.shareR, text=2)
+		self.sharetreeview.insert_column_with_attributes(2, _("Path"), self.shareR, text=3)
+		self.sharetreeview.set_model(self.sharelist)
+		self.sharetreeview.set_search_column(0)
+		self.sharetreeview.connect("row-activated", self.share_selected)
+		add_btn=gtk.Button(stock=gtk.STOCK_OK)
+		add_btn.connect("clicked",self.add_share)
+		reset_btn=gtk.Button(stock=gtk.STOCK_CLEAR)
+		reset_btn.connect("clicked",self.share_clear)
+		cancel_btn=gtk.Button(stock=gtk.STOCK_CANCEL)
+		cancel_btn.connect("clicked",self.add_share_deactivate)
+		add_btn2=gtk.Button(stock=gtk.STOCK_ADD)
+		add_btn2.connect("clicked",self.add_share_activate)
+		del_btn=gtk.Button(stock=gtk.STOCK_DELETE)
+		del_btn.connect("clicked",self.del_share)
+		self.mod_btn=gtk.Button(stock=gtk.STOCK_EDIT)
+		self.mod_btn.connect("clicked",self.activate_share_sel)
+		
+		shar_bbox=gtk.HButtonBox()
+		shar_bbox.pack_start(add_btn2,False,True,0)
+		shar_bbox.pack_start(self.mod_btn,False,True,0)
+		shar_bbox.pack_start(del_btn,False,True,0)
+		
+		comment_box=gtk.HBox()
+		comment_box.pack_start(comment_lbl,False,False,2)
+		comment_box.pack_start(self.comment_entry,False,False,23)
+		
+		local_box=gtk.HBox()
+		local_box.pack_start(local_lbl,False,False,2)
+		local_box.pack_start(self.local_entry,False,False,28)
+		local_box.pack_start(self.local_btn,False,False,2)
+		
+		sh_box=gtk.HBox()
+		sh_box.pack_start(sh_lbl,False,False,2)
+		sh_box.pack_start(self.sh_entry,False,False,10)
+		
+		btn_box=gtk.HButtonBox()
+		btn_box.pack_start(add_btn,False,True,0)
+		btn_box.pack_start(cancel_btn,False,True,0)
+		btn_box.pack_start(reset_btn,False,True,0)
+		user_access_ent_box=gtk.HBox()
+		self.user_access_label=gtk.Label(_("Choose the type of access for users."))
+		self.user_access_cmb=gtk.combo_box_new_text()
+		self.user_access_cmb.connect("changed",self.access_cmb_changed)
+		self.user_access_cmb.append_text("Leave Unchanged")
+		self.user_access_cmb.append_text("Read Only")
+		self.user_access_cmb.append_text("Read / Write")
+		self.user_access_cmb.append_text("Deny All")
+#		self.user_access_cmb.set_active(0)
+		user_access_ent_box.pack_start(self.user_access_label,False,True,1)
+		user_access_ent_box.pack_start(self.user_access_cmb,False,True,1)
+		self.unchanged_lbl=gtk.Label(_("'Leave Unchanged' is used when the user has set access permissions that are more in depth than what is available here. Most users will not need this option.")+"\n")
+		self.unchanged_lbl.set_line_wrap(True)
+	
+		self.addsharbox.pack_start(sh_box,False,False,0)
+		self.addsharbox.pack_start(comment_box,False,False,0)
+		self.addsharbox.pack_start(local_box,False,True,0)
+		self.addsharbox.pack_start(self.public_sel,False,True,0)
+		self.addsharbox.pack_start(user_access_ent_box,False,True,1)
+		self.addsharbox.pack_start(self.unchanged_lbl,False,True,1)
+		self.addsharbox.pack_end(btn_box,False,True,0)
+
+			##right side##
+		#self.sharbox_list.pack_start(self.sharetreeview,True,True,0)
+		self.show_all_shares= gtk.CheckButton(_("Show shares from all users"),True)
+		self.show_all_shares.connect("clicked",self.updateshare)
+		if os.geteuid()==0:
+			print "ROOT USER"
+			self.sharbox_list.pack_start(self.show_all_shares,False,True,0)
+			
+		self.sharbox_list.pack_start(self.sharescrolledwindow,True,True,0)
+		self.sharbox_list.pack_end(shar_bbox,False,True,0)
+		##End Interior share layout##
+		ch_pw_hbox=gtk.HBox()
+		ch_pw_box=gtk.VBox()
+		ch_pw_label=gtk.Label(_("Change password for:")+" "+os.environ.get('USER') )
+		old_pw_lbl=gtk.Label(_("Enter the old password:"))
+		new_pw_lbl=gtk.Label(_("Enter the new password:"))
+		confirm_pw_lbl=gtk.Label(_("Confirm the new password:"))
+		self.old_pw_entry=gtk.Entry()
+		self.new_pw_entry=gtk.Entry()
+		self.confirm_pw_entry=gtk.Entry()
+		self.new_pw_entry.set_visibility(False)
+		self.new_pw_entry.set_invisible_char("*") 
+		self.old_pw_entry.set_visibility(False)
+		self.old_pw_entry.set_invisible_char("*") 
+		self.confirm_pw_entry.set_visibility(False)
+		self.confirm_pw_entry.set_invisible_char("*") 
+		change_btn=gtk.Button(_("Change"))
+		change_btn.connect("clicked",self.ch_pw)
+		ch_pw_box.pack_start(ch_pw_label,False,False,1)
+		ch_pw_box.pack_start(old_pw_lbl,False,False,1)
+		ch_pw_box.pack_start(self.old_pw_entry,False,False,1)
+		ch_pw_box.pack_start(new_pw_lbl,False,False,1)
+		ch_pw_box.pack_start(self.new_pw_entry,False,False,1)
+		ch_pw_box.pack_start(confirm_pw_lbl,False,False,1)
+		ch_pw_box.pack_start(self.confirm_pw_entry,False,False,1)
+		ch_pw_box.pack_start(change_btn,False,False,1)
+		ch_pw_hbox.pack_start(ch_pw_box,False,False)
+		#~ if os.environ.get('USER')=="root":
+			#~ self.old_pw_entry.hide()
+			#~ #self.old_pw_entry.set_sensitive(False)
+		#~ else:
+			#~ #self.old_pw_entry.set_sensitive(True)
+			#~ self.old_pw_entry.show()
+		class image_label(gtk.HBox):
+			def create(self,image,label):
+				IMAGE=gtk.Image()
+				IMAGE.set_from_icon_name(image,4)
+				LABEL=gtk.Label(label)
+				self.pack_start(IMAGE)
+				self.pack_start(LABEL)
+				self.show_all()
+		share_label=image_label()
+		share_label.create("gnome-fs-smb",_("User Shared Folders"))
+		ch_pw_tab_label=image_label()
+		ch_pw_tab_label.create("dialog-password",_("Change Password"))
+		system_label=image_label()
+		#The previous lines are to set an image plus text for the "shares" label on the notebook.
+		#to enable it uncomment them and change the set_tab_label_text for that tab to set_tab_label
+		##Main Layout part II##
+		self.notebook=gtk.Notebook()
+		self.notebook.set_show_border(False)
+		self.notebook.insert_page(self.sharbox,tab_label=None,position=0)
+		
+		#self.notebook.set_tab_label_text(self.sharbox,"Shared Folder Settings")
+		self.notebook.set_tab_label(self.sharbox,share_label)
+		self.notebook.insert_page(ch_pw_hbox,tab_label=None,position=1)
+		self.notebook.set_tab_label(ch_pw_hbox,ch_pw_tab_label)
+		
+		self.notebook.set_tab_pos(gtk.POS_LEFT)
+		#self.notebook.connect("switch-page", self.tab_clicked)
+		hsep=gtk.HSeparator()
+		quitbtn=gtk.Button(stock="gtk-quit")
+		self.admin_btn=gtk.Button(stock=gtk.STOCK_PREFERENCES)
+		self.admin_btn.connect("clicked",self.launch_admin)
+		self.admin_btn.get_children()[0].get_children()[0].get_children()[1].set_label(_("Samba Admin"))
+		self.admin_btn.set_tooltip_text(_("Click to launch smb-admin as the 'root' user for more advanced Samba Administration."))
+		#quitbtn.get_children()[0].get_children()[0].get_children()[1].set_label("EXIT NOW")
+		about=gtk.Button(stock=gtk.STOCK_ABOUT)#"About")
+		about.connect("clicked",self.abtfunc)
+		quitbtn.connect("clicked",self.delete_event)
+		bbox=gtk.HButtonBox()
+		bbox.pack_start(about,False,True,0)
+		bbox.pack_start(self.admin_btn,False,True,0)
+		bbox.pack_start(quitbtn,False,True,0)
+		vbox=gtk.VBox()
+		vbox.pack_start(self.notebook,True,True,0)
+		vbox.pack_start(hsep,False,False,10)
+		vbox.pack_start(bbox,False,True,0)
+		##End Main Layout part II##
+		self.set_title("Smb-Usershare")
+		self.connect("delete_event", self.delete_event)
+		FRAME=gtk.Frame(label=None)
+		FRAME.add(vbox)
+		self.add(FRAME)
+		self.show_all()
+		if os.environ.get('USER')=="root":
+			self.old_pw_entry.hide()
+			old_pw_lbl.hide()
+		self.addsharbox.show_all()
+		self.unchanged_lbl.hide()
+		self.pw_entry2=gtk.Entry()
+		self.pw_entry3=gtk.Entry()
+		self.uname_entry2=gtk.Entry()
+#		self.set_size_request(525,325)
+	def abtfunc(self,widget):
+		global VERSION
+		about_win=gtk.AboutDialog()
+		about_win.set_version(VERSION)
+		about_win.set_name("Smb-Usershare")
+		about_win.set_authors(["David Braker (LinuxNIT)\nContact: linuxnit@elivecd.org"])
+		if os.access("/usr/share/pixmaps/smb-browser.png",0)==True:
+			image=gtk.gdk.pixbuf_new_from_file_at_size("/usr/share/pixmaps/smb-browser.png",60,60)
+		else:
+			image=None
+		about_win.set_logo(image)
+		def close(w, res):
+			if res == gtk.RESPONSE_CANCEL:
+				w.hide()
+		about_win.connect("response", close)
+		about_win.set_wrap_license(True)
+		about_win.set_license("This program was designed to assist users in adding, modifiying and removing usershares on a samba server which allows such access. It also proveds a GUI for the user to change their password in. Copyright (C) <2007>  <David Brakers> This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. On a Debian GNU/Linux system you can find a copy of this license in `/usr/share/common-licenses/'.")
+		about_win.set_comments(_("This program was designed to assist users in adding, modifiying and removing usershares on a samba server which allows such access. It also proveds a GUI for the user to change their password in."))
+		about_win.show()
+	def activate_share_sel(self,widget):
+		self.share_selected(None,None,None)
+	def add_share_activate(self,widget):
+		print "add share activated"
+		print self.sh_entry.get_text()
+		global ORIGINAL_SHARE
+		ORIGINAL_SHARE=self.sh_entry.get_text()
+		if ORIGINAL_SHARE=="":
+			
+			self.user_access_cmb.set_active(1)
+		if widget!=None:
+			self.public_sel.set_active(True)
+		print self.sharbox.get_children()[0]
+		if self.sharbox.get_children()[0] == self.sharbox_list:
+			self.sharbox.remove(self.sharbox_list)
+			self.sharbox.pack_start(self.addsharbox)
+	def add_share_deactivate(self,widget):
+		self.sharbox.remove(self.addsharbox)
+		self.sharbox.add(self.sharbox_list)
+		self.share_clear(None)
+
+	def add_share(self,widget):
+		state=[]
+		if self.show_all_shares.get_active()==True:
+			print "ACTIVE"
+			COMMAND="net usershare -l"
+		else:
+			print "FALSE"
+			COMMAND="net usershare "
+
+		global ORIGINAL_SHARE
+		print ORIGINAL_SHARE,"this is the original share"
+		sharename=self.sh_entry.get_text().strip()
+		if sharename.strip()=="":
+			return self.msgbox(_("Please enter a sharename."),False)
+		elif self.local_entry.get_text().strip()=="":
+			return self.msgbox(_("Please enter a share path."),False)
+		path=self.local_entry.get_text()
+		comment=self.comment_entry.get_text()
+		if self.public_sel.get_active() == True:
+			public="yes"
+		elif self.public_sel.get_active() == False:
+			public="no"
+		user_acl="Everyone:r"
+		index = self.user_access_cmb.get_active()
+		access_list=["Leave Unchanged","Read Only","Read / Write","Deny"]
+		access_type=access_list[index]
+		print access_type
+		print index
+#		return
+		if access_type=="Leave Unchanged" and ORIGINAL_SHARE != "":
+			#in this case the user is modifying an existing share and
+			#the user has predefined usershare_acl settings which we dont 
+			#want to change unless they do
+			#the following will obtain the current usershare_acl setting for sharename
+			info=subprocess.Popen(COMMAND+" info "+sharename,shell=True,stdout=subprocess.PIPE).stdout.readlines()
+			for line in info:
+				if line.startswith("usershare_acl"):
+					user_acl=line.split("=")[1].strip().lower().strip(",")
+		elif access_type!="Leave Unchanged" and ORIGINAL_SHARE != "":
+			#the  user is modifying a share
+			#the user has chosen a access type so either they want to over-ride the 
+			#current usershare_acl settings or this the original usershare_acl contained
+			#a setting for "Everyone"
+		#elif ORIGINAL_SHARE == "":
+			if access_type =="Read Only":
+				user_acl="Everyone:r"
+			elif access_type =="Read / Write":
+				user_acl="Everyone:f"
+			elif access_type =="Deny":
+				user_acl="Everyone:d"
+			elif access_type =="Access:":
+				user_acl="Everyone:r"
+		elif ORIGINAL_SHARE =="":
+			#in this case the user is creating a new share
+			if access_type =="Read Only":
+				user_acl="Everyone:r"
+			elif access_type =="Full Access":
+				user_acl="Everyone:f"
+			elif access_type =="Deny":
+				user_acl="Everyone:d"
+			elif access_type =="Access:":
+				user_acl="Everyone:r"
+		print user_acl,"THIS ONE FIRST"
+		if "everyone" not in user_acl.lower() and public == "yes":
+			return self.msgbox(_("If you want to allow guest access, you must have a usershare_acl setting for 'Everyone.' To add one, select an access mode from the drop down menu. This will remove the current usershare_acl settings for the share since a setting for 'Everyone' will over-ride any other settings."),False)
+		command ="net usershare add \""+sharename+"\" \""+path+"\" \""+comment+"\" \""+user_acl+"\" guest_ok="+public
+		print command
+		print user_acl
+		#~ return
+		netuscmd=subprocess.Popen(command,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+		output=netuscmd.stdout.readlines()
+		error=netuscmd.stderr.readlines()
+		if netuscmd.wait()==0:
+			print "share added"
+			self.msgbox(_("Share added successfuly."),False)
+		else:
+			print "else"
+			msg=""
+			for x in output:
+				print x
+				msg=msg+x
+			for x in error:
+				print x
+				msg=msg+x
+			self.msgbox(msg,False)
+		if access_type=="Read / Write":
+			self.msgbox(_("WARNING: If you have problems writting to this folder remotely, be sure that the Systems Folder Permissions allow write access to the 'Others' group. This can be done via the alt-click on the folder > Properties > Permissions in most file managers."), _("Remote access is limited by Samba and by the permissions of the files or folders being shared. If Samba is set to read/write but the System user account which was used to login to Samba with can only read, then write access will be denied. (If logged in as guest, the System account is 'nobody') The easiest way to fix this is to access folder permissions via your file manager and change the permissions for 'Others' to Read / Write. If you do not apply them recursively, then only that folder will have the Read / Write access."))
+			#self.msgbox("WARNING: Remote access is limited by Samba and by the permissions of the files or folders being shared."," If Samba is set to read/write but the System user account which was used to login to Samba with can only read, then write access will be denied. (If logged in as guest, the System account is 'nobody') The easiest way to fix this is to access folder permissions via your file manager and change the permissions for 'Others' to Read / Write. If you do not apply them recursively, then only that folder will have the Read / Write access.")
+		self.share_clear(None)
+		self.add_share_deactivate(None)
+		return gui.updateshare(None)
+	def ch_pw(self,widget):
+		old_pw=self.old_pw_entry.get_text()
+		new_pw=self.new_pw_entry.get_text()
+		confirm_pw=self.confirm_pw_entry.get_text()
+		if confirm_pw.strip()==new_pw.strip():
+			smbpasscmd=subprocess.Popen("smbpasswd -s",shell=True,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+			input=smbpasscmd.stdin
+			if os.environ.get('USER')!="root":
+				input.write(old_pw+"\n")
+			input.write(new_pw+"\n")
+			input.write(confirm_pw+"\n")
+			output=smbpasscmd.stdout.readlines()
+			error=smbpasscmd.stderr.readlines()
+			if smbpasscmd.wait()==0:
+				if len(output)==0:
+					print "NOTHING"
+					self.msgbox(_("Password changed."),False)
+				else:
+					self.msgbox(output,False)
+			else:
+				msg=''
+				for x in output:
+					msg=msg+x
+				for x in error:
+					msg=msg+x
+				if "password restriction" in msg.lower() and len(new_pw)<5:
+					msg=msg+"\n"+_("Try a password with more than 5 Characters")
+				self.msgbox(msg,False)
+		else:
+			self.msgbox(_("The passwords do not match."),False)
+
+	def delete_event( widget, event=None, data=None):
+		gtk.main_quit()
+		return False
+	def del_share(self,widget):
+		s = self.sharetreeview.get_selection()
+		(ls, iter) = s.get_selected()	
+		if iter is None:
+			print "nothing selected"
+		else:
+			sharename=ls.get_value(iter, 1)
+		if sharename !="":
+			useshardel=subprocess.Popen("net usershare delete \""+sharename+"\"",shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+			output=useshardel.stdout.readlines()
+			error=useshardel.stderr.readlines()
+			if useshardel.wait()==0:
+				print "share deleted"
+				self.msgbox(_("Shared folder successfully deleted"),False)
+			else:
+				print "else"
+				msg=""
+				for x in output:
+					print x
+					msg=msg+x
+				for x in error:
+					print x
+					msg=msg+x
+				self.msgbox(msg,False)
+			self.share_clear("worthless data")
+		gui.updateshare(None)
+	def folder_sel(self,widget):	
+		filew = gtk.FileChooserDialog(title=_("Choose a folder"),action=gtk.FILE_CHOOSER_ACTION_SELECT_FOLDER,
+			buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_OPEN,gtk.RESPONSE_OK))
+		response=filew.run()
+		if response ==gtk.RESPONSE_OK:
+			self.local_entry.set_text(filew.get_filename())
+		filew.destroy()
+	def launch_admin(self,widget):
+		subprocess.Popen("gksu -u root smb-admin",shell=True,stdout=subprocess.PIPE)
+	def msgbox(self,MSG,alt_msg):
+		popup = gtk.MessageDialog(parent=None, flags=gtk.MESSAGE_WARNING, buttons=gtk.BUTTONS_OK, message_format=MSG)
+		if alt_msg !=False:
+			lbl=gtk.Label(alt_msg)
+			lbl.set_line_wrap(True)
+			exp=gtk.Expander(label=_("More Details"))
+			exp.add(lbl)
+			popup.vbox.pack_start(exp)
+		popup.set_position(gtk.WIN_POS_CENTER_ALWAYS)
+		popup.show_all()
+		popup.run()
+		popup.destroy()
+		return True
+
+	def share_selected(self,x,y,widget):
+		print "SHARE SELECTED FUNC"
+		if type(widget)==str:
+			sharename=widget
+		else:
+			if self.show_all_shares.get_active()==True:
+				return
+			s = self.sharetreeview.get_selection()
+			(ls, iter) = s.get_selected()	
+			if iter is None:
+				print "nothing selected"
+				return
+			else:
+				sharename=ls.get_value(iter, 1)
+		print sharename
+		self.sh_entry.set_text(sharename)
+		config=configobj.ConfigObj(subprocess.Popen("net usershare  info \""+sharename+"\"",shell=True,stdout=subprocess.PIPE).stdout.readlines())
+		self.local_entry.set_text(config[sharename]["path"])
+		self.comment_entry.set_text(config[sharename]["comment"])
+		print config[sharename]["guest_ok"]
+		if config[sharename]["guest_ok"] == "y":
+			self.public_sel.set_active(True)#.append("Yes")
+		elif config[sharename]["guest_ok"] == "n":	
+			self.public_sel.set_active(False)#.append("No")
+		#self.user_access_cmb.set_active(1)
+		everyone_present=False
+		for perm in config[sharename]["usershare_acl"]:
+			print perm,"######"
+			if "Everyone" in perm:
+				everyone_present=True
+				print perm.split(":")[1],"########################"
+				if perm.split(":")[1].strip() == "F":
+					self.user_access_cmb.set_active(2)
+				elif perm.split(":")[1].strip() == "R":
+					self.user_access_cmb.set_active(1)
+				elif perm.split(":")[1].strip() == "D":
+					self.user_access_cmb.set_active(3)
+		if everyone_present==False:
+			self.user_access_cmb.set_active(0)
+		self.add_share_activate(None)
+	def access_cmb_changed(self,widget):
+		if self.user_access_cmb.get_active()==0:
+			self.unchanged_lbl.show()
+		else:
+			self.unchanged_lbl.hide()
+	
+	def share_clear(self,widget):
+		self.sh_entry.set_text("")
+		self.local_entry.set_text("")
+		self.comment_entry.set_text("")
+		self.public_sel.set_active(True)
+		self.user_access_cmb.set_active(1)
+	def updateshare(self,widget):
+		self.sharelist.clear()
+		z=0
+		shares=[]
+		comments=[]
+		permissions=[]
+		public=[]
+		path=[]
+		if self.show_all_shares.get_active()==True:
+			print "ACTIVE"
+			COMMAND="net usershare -l"
+			self.mod_btn.set_sensitive(False)
+		else:
+			print "FALSE"
+			COMMAND="net usershare "
+			self.mod_btn.set_sensitive(True)
+		share_list=subprocess.Popen(COMMAND+" list",shell=True,stdout=subprocess.PIPE).stdout.readlines()
+		print share_list
+		print "FOR LOOP NEXT"
+		for share in share_list:
+			print share
+			share=share.strip()
+			info_conf=configobj.ConfigObj(subprocess.Popen(COMMAND+" info \""+share+"\"",shell=True,stdout=subprocess.PIPE).stdout.readlines())
+			comments.append(info_conf[share]["comment"])
+			path.append(info_conf[share]["path"])
+			iter = self.sharelist.append( [z,share,comments[z],path[z]])#comment[z],readonly[z],public[z],path[z]] )
+			z=z+1
+
+
+gui=GUI()
+gui.updateshare(None)
+gui.share_clear(None)
+if START_MSG!=None:
+	gui.msgbox(START_MSG)
+	sys.exit()
+if "-p" in sys.argv:
+	path=sys.argv[sys.argv.index("-p")+1]
+	print "we want to add a share on startup"
+	print "the path is "+path
+	ORIGINAL_SHARE=""
+	gui.local_entry.set_text(sys.argv[sys.argv.index("-p")+1])
+	gui.sh_entry.set_text(sys.argv[sys.argv.index("-p")+1].rsplit("/",1)[1])
+	#get list of usershares
+	lsus=subprocess.Popen("net usershare list",shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+	output=lsus.stdout.readlines()
+	lsus.stdout.close();lsus.stderr.close()
+	for share in output:
+		share=share.strip()
+		config=configobj.ConfigObj(subprocess.Popen("net usershare  info \""+share+"\"",shell=True,stdout=subprocess.PIPE).stdout.readlines())
+		if config[share]["path"] ==path:
+			gui.share_selected(None,None,share)
+			break
+	gui.add_share_activate(None)
+
+gtk.main()
