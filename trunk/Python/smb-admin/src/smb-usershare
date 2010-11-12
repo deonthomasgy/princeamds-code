@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 #fixed the bug with not loading when ran by root.
 #need to fix password change functions for root user.
 ##This program was designed to assist users
