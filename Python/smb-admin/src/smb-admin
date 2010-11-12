@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 
 #fixed bug in createing a newconfig when one is not present.
 #fixed bug in setting the default value for usershare max shares
