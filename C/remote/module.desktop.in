@@ -1,0 +1,9 @@
+
+[Desktop Entry]
+Type=Link
+Name=Remote
+Icon=e-module-remote
+Comment=<title>Remote Module</title><br>A module that exports e17 specifics functions using Dbus
+
+#Several different types available here. NEED TO DOC THESE.
+X-Enlightenment-ModuleType=system
