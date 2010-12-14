@@ -1,0 +1,48 @@
+Index: tempget.c
+===================================================================
+--- tempget.c	(revision 49200)
++++ tempget.c	(working copy)
+@@ -130,6 +130,11 @@
+ 		  sensor_type = SENSOR_TYPE_LINUX_INTELCORETEMP;
+ 		  sensor_name = strdup("dummy");
+ 	       }
++         else if (ecore_file_exists("/sys/class/hwmon/hwmon0/temp1_input"))
++	       {
++		  sensor_type = SENSOR_TYPE_LINUX_HWMON;
++		  sensor_name = strdup("dummy");
++	       }
+ 	     else
+ 	       {
+ 		  // try the i2c bus
+@@ -222,6 +227,9 @@
+ 	   case SENSOR_TYPE_LINUX_INTELCORETEMP:
+ 	     sensor_path = strdup("/sys/devices/platform/coretemp.0/temp1_input");
+ 	     break;
++     case SENSOR_TYPE_LINUX_HWMON:
++	     sensor_path = strdup("/sys/class/hwmon/hwmon0/temp1_input");
++	     break;
+ 	   case SENSOR_TYPE_LINUX_I2C:
+ 	     therms = ecore_file_ls("/sys/bus/i2c/devices");
+ 
+@@ -334,6 +342,7 @@
+ 	  goto error;
+ 	break;
+       case SENSOR_TYPE_LINUX_INTELCORETEMP:
++      case SENSOR_TYPE_LINUX_HWMON:
+       case SENSOR_TYPE_LINUX_I2C:
+ 	f = fopen(sensor_path, "r");
+ 	if (f)
+Index: e_mod_main_private.h
+===================================================================
+--- e_mod_main_private.h	(revision 49200)
++++ e_mod_main_private.h	(working copy)
+@@ -14,7 +14,8 @@
+    SENSOR_TYPE_LINUX_ACPI,
+    SENSOR_TYPE_LINUX_PCI,
+    SENSOR_TYPE_LINUX_PBOOK,
+-   SENSOR_TYPE_LINUX_INTELCORETEMP
++   SENSOR_TYPE_LINUX_INTELCORETEMP,
++   SENSOR_TYPE_LINUX_HWMON
+ } Sensor_Type;
+ 
+ #endif
