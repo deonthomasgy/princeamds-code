@@ -1,0 +1,91 @@
+#!/bin/bash
+#makee17 v2
+echo "Updating SVN"
+USER=`whoami`
+DATE=`date +%Y%m%d`
+SHM='/dev/shm'
+PKGDIR=/home/$USER/e_pkgs #where to store the compiled pkgs
+BUILDDIR=$SHM/home/$USER/e_builds #where the compiling will take place
+BASE_DIR=/home/$USER/e/trunk/ #where the trunk of e is located
+#BASE_DIR=$SHM/e/trunk/ #where the trunk of e is located
+PKGEXT='*.pkg.tar.*'
+#svn up $BASE_DIR
+if [ -d "$PKGDIR/$DATE" ]; then
+rm -rf  "$PKGDIR/$DATE"
+fi
+
+if [ -d "$BUILDDIR" ]; then
+rm -rf  "$BUILDDIR"
+fi
+
+mkdir -p $PKGDIR/$DATE
+mkdir -p $BUILDDIR
+notify-send -i xterm "Starting to compile e17"
+#pkgname;svnloc;pkgloc
+SVN_LIST="eina-svn,eina,/home/$USER/makepkgs/eina-svn\
+  eet-svn,eet,/home/$USER/makepkgs/eet-svn\
+  evas-svn,evas,/home/$USER/makepkgs/evas-svn\
+  ecore-svn,ecore,/home/$USER/makepkgs/ecore-svn\
+  eio-svn,eio,/home/$USER/makepkgs/eio-svn\
+  eeze-svn,eeze,/home/$USER/makepkgs/eeze-svn\
+  efreet-svn,efreet,/home/$USER/makepkgs/efreet-svn\
+  e_dbus-svn,e_dbus,/home/$USER/makepkgs/e_dbus-svn\
+  embryo-svn,embryo,/home/$USER/makepkgs/embryo-svn\
+  edje-svn,edje,/home/$USER/makepkgs/edje-svn\
+  emprint-svn,emprint,/home/$USER/makepkgs/emprint-svn\
+  e-svn,e,/home/$USER/makepkgs/e-svn\
+  exalt-svn,exalt,/home/$USER/makepkgs/exalt-svn\
+  ethumb-svn,ethumb,/home/$USER/makepkgs/ethumb-svn\
+  ephoto-svn,ephoto,/home/$USER/makepkgs/ephoto-svn\
+  libeweather-svn,PROTO/libeweather,/home/$USER/makepkgs/libeweather-svn\
+  elementary-svn,TMP/st/elementary,/home/$USER/makepkgs/elementary-svn\
+  ewallset-svn,ewallset,/home/$USER/makepkgs/ewallset-svn\
+  emodule-remote-svn,remote,/home/$USER/makepkgs/remote-svn\
+  enlil-svn,enlil,/home/$USER/makepkgs/enlil-svn\
+  enki-svn,enki,/home/$USER/makepkgs/enki-svn\
+  expedite-svn,expedite,/home/$USER/makepkgs/expedite-svn\
+  e-modules-extra-svn,E-MODULES-EXTRA,/home/$USER/makepkgs/e-modules-extra-svn"
+  
+  for list in $SVN_LIST
+  do
+    pkgname=`echo $list|awk 'BEGIN { FS ="," } ; { print $1 }' `
+    svnloc=`echo $list|awk 'BEGIN { FS ="," } ; { print $2 }' `
+    pkgloc=`echo $list|awk 'BEGIN { FS ="," } ; { print $3 }' `
+    
+    #check if package is installed and it's version
+    inspkgver=`pacman -Q $pkgname |awk 'BEGIN { FS =" " } ; { print $2 }' |awk 'BEGIN { FS ="-" } ; { print $1 }'`
+    svnver=`svn info $BASE_DIR/$svnloc | sed -n 's/^Last Changed Rev[: ]*//p'`
+    
+    if [ $svnver != $inspkgver ]; then 
+      echo '-|'"$pkgname will be updated"
+    fi
+    
+    if [ "$1" = "-a" ]; then
+      cp -rf $pkgloc $BUILDDIR
+      sed -i 's/svn co/svn_co/g;s/svn up/svn_up/g;s/_svntrunk/#_svntrunk/;s/COPYING-PLAIN/COPYING/g' $BUILDDIR/$pkgname/PKGBUILD
+      sed -i "s/pkgver=.*//g;s/^_svnmod=.*/&\npkgver=\$(svn info \$srcdir\/\$_svnmod|sed -n 's\/^Last Changed Rev[: ]*\/\/p')/g"  $BUILDDIR/$pkgname/PKGBUILD
+      mkdir $BUILDDIR/$pkgname/src
+      cp -rf $BASE_DIR/$svnloc $BUILDDIR/$pkgname/src
+      cd $BUILDDIR/$pkgname
+      notify-send -i xterm "Compiling $pkgname"
+      makepkg -f 
+      namcap PKGBUILD *$PKGEXT
+      notify-send -i xterm "Installing $pkgname"
+      sudo pacman -U --noconfirm *$PKGEXT
+      install -Dm644 *$PKGEXT $PKGDIR/$(date +%Y%m%d)/
+    elif [ $svnver -gt $inspkgver ]; then
+      cp -rf $pkgloc $BUILDDIR
+      sed -i 's/svn co/svn_co/g;s/svn up/svn_up/g;s/_svntrunk/#_svntrunk/;s/COPYING-PLAIN/COPYING/g' $BUILDDIR/$pkgname/PKGBUILD
+      sed -i "s/pkgver=.*//g;s/^_svnmod=.*/&\npkgver=\$(svn info \$srcdir\/\$_svnmod|sed -n 's\/^Last Changed Rev[: ]*\/\/p')/g"  $BUILDDIR/$pkgname/PKGBUILD
+      mkdir $BUILDDIR/$pkgname/src
+      cp -rf $BASE_DIR/$svnloc $BUILDDIR/$pkgname/src
+      cd $BUILDDIR/$pkgname
+      notify-send -i xterm "Compiling $pkgname"
+      makepkg -f 
+      namcap PKGBUILD *$PKGEXT
+      notify-send -i xterm "Installing $pkgname"
+      sudo pacman -U --noconfirm *$PKGEXT
+      install -Dm644 *$PKGEXT $PKGDIR/$(date +%Y%m%d)/
+    fi
+  done
+  
