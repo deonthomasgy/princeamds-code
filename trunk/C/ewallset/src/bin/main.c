@@ -67,7 +67,7 @@ _message(E_DBus_Connection *conn, char *name, char *image)
 	DBusMessageIter iter;
 	
 	msg = dbus_message_new_method_call(
-		"org.enlightenment.Remote.service",
+		"org.enlightenment.wm.service",
 		"/org/enlightenment/Remote/RemoteObject",
 		"org.enlightenment.Remote.Wallpaper",name);
 	dbus_message_iter_init_append(msg, &iter);
@@ -83,7 +83,7 @@ _config_get(E_DBus_Connection *conn, char *name)
 	DBusMessageIter iter;
 	
 	msg = dbus_message_new_method_call(
-		"org.enlightenment.Remote.service",
+		"org.enlightenment.wm.service",
 		"/org/enlightenment/Remote/RemoteObject",
 		"org.enlightenment.Remote.Wallpaper",name);
 	e_dbus_message_send(conn, msg, cb_reply, 10, NULL);
