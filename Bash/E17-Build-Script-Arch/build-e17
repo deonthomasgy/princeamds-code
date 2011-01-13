@@ -5,7 +5,8 @@ USER=`whoami`
 DATE=`date +%Y%m%d`
 SHM='/dev/shm'
 PKGDIR=/home/$USER/e_pkgs #where to store the compiled pkgs
-BUILDDIR=$SHM/home/$USER/e_builds #where the compiling will take place
+BUILDDIR=/home/$USER/e_builds #where the compiling will take place
+#BUILDDIR=$SHM/home/$USER/e_builds #where the compiling will take place
 BASE_DIR=/home/$USER/e/trunk/ #where the trunk of e is located
 #BASE_DIR=$SHM/e/trunk/ #where the trunk of e is located
 PKGEXT='*.pkg.tar.*'
@@ -26,12 +27,12 @@ SVN_LIST="eina-svn,eina,/home/$USER/makepkgs/eina-svn\
   eet-svn,eet,/home/$USER/makepkgs/eet-svn\
   evas-svn,evas,/home/$USER/makepkgs/evas-svn\
   ecore-svn,ecore,/home/$USER/makepkgs/ecore-svn\
-  eio-svn,eio,/home/$USER/makepkgs/eio-svn\
-  eeze-svn,eeze,/home/$USER/makepkgs/eeze-svn\
-  efreet-svn,efreet,/home/$USER/makepkgs/efreet-svn\
-  e_dbus-svn,e_dbus,/home/$USER/makepkgs/e_dbus-svn\
   embryo-svn,embryo,/home/$USER/makepkgs/embryo-svn\
   edje-svn,edje,/home/$USER/makepkgs/edje-svn\
+  efreet-svn,efreet,/home/$USER/makepkgs/efreet-svn\
+  e_dbus-svn,e_dbus,/home/$USER/makepkgs/e_dbus-svn\
+  eeze-svn,eeze,/home/$USER/makepkgs/eeze-svn\
+  eio-svn,eio,/home/$USER/makepkgs/eio-svn\
   emprint-svn,emprint,/home/$USER/makepkgs/emprint-svn\
   e-svn,e,/home/$USER/makepkgs/e-svn\
   exalt-svn,exalt,/home/$USER/makepkgs/exalt-svn\
@@ -40,7 +41,7 @@ SVN_LIST="eina-svn,eina,/home/$USER/makepkgs/eina-svn\
   libeweather-svn,PROTO/libeweather,/home/$USER/makepkgs/libeweather-svn\
   elementary-svn,TMP/st/elementary,/home/$USER/makepkgs/elementary-svn\
   ewallset-svn,ewallset,/home/$USER/makepkgs/ewallset-svn\
-  emodule-remote-svn,remote,/home/$USER/makepkgs/remote-svn\
+  remote-svn,remote,/home/$USER/makepkgs/remote-svn\
   enlil-svn,enlil,/home/$USER/makepkgs/enlil-svn\
   enki-svn,enki,/home/$USER/makepkgs/enki-svn\
   expedite-svn,expedite,/home/$USER/makepkgs/expedite-svn\
@@ -61,9 +62,12 @@ SVN_LIST="eina-svn,eina,/home/$USER/makepkgs/eina-svn\
     fi
     
     if [ "$1" = "-a" ]; then
+   
+      echo $pkgname $pkgloc $svnloc
       cp -rf $pkgloc $BUILDDIR
       sed -i 's/svn co/svn_co/g;s/svn up/svn_up/g;s/_svntrunk/#_svntrunk/;s/COPYING-PLAIN/COPYING/g' $BUILDDIR/$pkgname/PKGBUILD
       sed -i "s/pkgver=.*//g;s/^_svnmod=.*/&\npkgver=\$(svn info \$srcdir\/\$_svnmod|sed -n 's\/^Last Changed Rev[: ]*\/\/p')/g"  $BUILDDIR/$pkgname/PKGBUILD
+      
       mkdir $BUILDDIR/$pkgname/src
       cp -rf $BASE_DIR/$svnloc $BUILDDIR/$pkgname/src
       cd $BUILDDIR/$pkgname
@@ -73,7 +77,8 @@ SVN_LIST="eina-svn,eina,/home/$USER/makepkgs/eina-svn\
       notify-send -i xterm "Installing $pkgname"
       sudo pacman -U --noconfirm *$PKGEXT
       install -Dm644 *$PKGEXT $PKGDIR/$(date +%Y%m%d)/
-    elif [ $svnver -gt $inspkgver ]; then
+      
+   elif [ $svnver -gt $inspkgver ]; then
       cp -rf $pkgloc $BUILDDIR
       sed -i 's/svn co/svn_co/g;s/svn up/svn_up/g;s/_svntrunk/#_svntrunk/;s/COPYING-PLAIN/COPYING/g' $BUILDDIR/$pkgname/PKGBUILD
       sed -i "s/pkgver=.*//g;s/^_svnmod=.*/&\npkgver=\$(svn info \$srcdir\/\$_svnmod|sed -n 's\/^Last Changed Rev[: ]*\/\/p')/g"  $BUILDDIR/$pkgname/PKGBUILD

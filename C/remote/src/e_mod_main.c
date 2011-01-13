@@ -877,7 +877,7 @@ int e_remote_init()
 		printf("WARNING: Cannot get DBUS_BUS_SESSION\n");
 	  return 0;
 	}
-	e_dbus_request_name(data->conn, "org.enlightenment.Remote.service", 0, NULL, NULL);
+	e_dbus_request_name(data->conn, "org.enlightenment.wm.service", 0, NULL, NULL);
 	data->obj = e_dbus_object_add(data->conn, "/org/enlightenment/Remote/RemoteObject", NULL);
   
 	/*Wallpaper*/
