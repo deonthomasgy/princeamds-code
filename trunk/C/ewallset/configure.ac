@@ -18,7 +18,7 @@ AC_HEADER_STDC
 AC_C_CONST
 
 PKG_CHECK_MODULES([ELEMENTARY], [
-                   eina-0
+                   eina
                    ecore-file
 		   edbus
                    elementary
