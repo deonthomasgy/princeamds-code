@@ -792,7 +792,7 @@ _e_remote_get_resolution_cb(E_DBus_Object *obj, DBusMessage *msg)
    else
    {
 	man = e_manager_current_get();
-	ecore_x_randr_screen_current_size_get(man->root,&size.width,&size.height,NULL,NULL);
+	ecore_x_randr_screen_primary_output_current_size_get(man->root,&size.width,&size.height,NULL,NULL,0);
 	snprintf(buf, sizeof(buf), "%dx%d",size.width,size.height);
 	value = strdup(buf);
    }
