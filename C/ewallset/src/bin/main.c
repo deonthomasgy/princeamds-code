@@ -69,7 +69,7 @@ cb_reply(void *data, DBusMessage *reply, DBusError *error)
 }
 
 static void 
-_message(E_DBus_Connection *conn, char *name, char *image)
+_message(E_DBus_Connection *conn, char *obj, char *name, char *image)
 {
 	DBusMessage *msg;
 	DBusMessageIter iter;
@@ -77,7 +77,7 @@ _message(E_DBus_Connection *conn, char *name, char *image)
 	msg = dbus_message_new_method_call(
 		"org.enlightenment.wm.service",
 		"/org/enlightenment/Remote/RemoteObject",
-		"org.enlightenment.Remote.Wallpaper",name);
+		obj,name);
 	
 	if( image != NULL)
 	{
@@ -106,11 +106,11 @@ Eina_Bool set_bg_timer(void *data)
 		{
 			char *set_bg = strdup(e->edj);
 			if (e->desk == 0)
-				_message(e->conn,"Default_Set",set_bg);
+				_message(e->conn,"org.enlightenment.Remote.Wallpaper","Default_Set",set_bg);
 			else if (e->desk == 1)
-				_message(e->conn,"Set_Current_Desktop",set_bg);
+				_message(e->conn,"org.enlightenment.Remote.Wallpaper","Set_Current_Desktop",set_bg);
 			else if (e->desk == 2)
-				_message(e->conn,"Set_This_Screen",set_bg);
+				_message(e->conn,"org.enlightenment.Remote.Wallpaper","Set_This_Screen",set_bg);
 			ewallset_end();
 		}
 	}
@@ -127,7 +127,7 @@ int get_correct_size(int size, int w, int h,int *tw, int *th,int cord)
 	aspect = (float)w/h;
 	//printf("aspect: %1.2f \n",aspect);
 	
-	if (cord == 0)
+	if (cord == BY_WIDTH)
 	{
 		if(h > size)
 		{
@@ -136,7 +136,7 @@ int get_correct_size(int size, int w, int h,int *tw, int *th,int cord)
 //		printf("IMAGE_0: %dx%d \n",w,h);
 		}
 	}
-	else if ( cord == 1)
+	else if ( cord == BY_HEIGHT)
 	{
 		if(w > size)
 		{
@@ -354,8 +354,8 @@ ewallset_main()
         evas_object_size_hint_align_set(image, -1.0, -1.0);
 	elm_image_object_size_get(image,&e->w,&e->h);
 	get_correct_size(410,e->w,e->h,&tw,&th,BY_HEIGHT);
-	//printf("Res:%dx%d \n",e->w,e->h);
-	//_get_correct_size(w,h,&tw,&th);
+	printf("Res:%dx%d \n",e->w,e->h);
+
 	evas_object_size_hint_min_set(image, tw, th);
 	elm_box_pack_end(bx, image);
 	evas_object_show(image);
@@ -422,7 +422,7 @@ ewallset_main()
 	
 	bx3 = elm_box_add(e->win);
 	elm_box_horizontal_set(bx3, 1);
-	elm_box_homogenous_set(bx3, 1);
+	//elm_box_homogenous_set(bx3, 1);
 	elm_frame_content_set(frame,bx3);
 	evas_object_show(bx3);
 	
@@ -466,6 +466,8 @@ ewallset_main()
 	elm_box_pack_end(bx3, rd);
 	evas_object_show(rd);
 	
+	if(th > tw)
+	{
 	rd = elm_radio_add(e->win);
 	elm_radio_state_value_set(rd, IMPORT_SCALE_ASPECT_IN_TILE);
 	elm_radio_group_add(rd, rdg);
@@ -473,12 +475,13 @@ ewallset_main()
 	evas_object_smart_callback_add(rd, "changed", selection_changed,rdg);
 	elm_box_pack_end(bx3, rd);
 	evas_object_show(rd);
+	}
 	
 	elm_radio_value_set(rdg, 0);
 
 	bx2 = elm_box_add(e->win);
 	elm_box_horizontal_set(bx2, 1);
-	elm_box_homogenous_set(bx2, 1);
+	//elm_box_homogenous_set(bx2, 1);
 	elm_box_pack_end(bx, bx2);
 	evas_object_show(bx2);
 	
@@ -570,7 +573,7 @@ elm_main(int argc, char **argv)
 	}
 	
 	e->conn = e_dbus_bus_get(DBUS_BUS_SESSION);
-	_message(e->conn,"Config_Get",NULL);
+	_message(e->conn,"org.enlightenment.Remote.Wallpaper","Config_Get",NULL);
 	
 	ewallset_main();
 	elm_run();
