@@ -1,0 +1,113 @@
+Index: e_mod_config.c
+===================================================================
+--- e_mod_config.c	(revision 60472)
++++ e_mod_config.c	(working copy)
+@@ -40,6 +40,8 @@
+        struct
+        {
+           int case_sen;
++          int type;
++          int order;
+           struct
+           {
+              int first, last;
+@@ -131,6 +133,8 @@
+    cfdata->selection.windows_modifiers = fileman_config->selection.windows_modifiers;
+    cfdata->list.sort.dirs.first = fileman_config->list.sort.dirs.first;
+    cfdata->list.sort.case_sen = !(fileman_config->list.sort.no_case);
++   cfdata->list.sort.type = fileman_config->list.sort.type;
++   cfdata->list.sort.order = fileman_config->list.sort.order;
+    cfdata->dbus.desktop = e_config->device_desktop;
+    cfdata->dbus.auto_mount = e_config->device_auto_mount;
+    cfdata->dbus.auto_open = e_config->device_auto_open;
+@@ -165,6 +169,8 @@
+    fileman_config->list.sort.dirs.first = cfdata->list.sort.dirs.first;
+    fileman_config->list.sort.dirs.last = !(cfdata->list.sort.dirs.first);
+    fileman_config->list.sort.no_case = !(cfdata->list.sort.case_sen);
++   fileman_config->list.sort.type = cfdata->list.sort.type;
++   fileman_config->list.sort.order = cfdata->list.sort.order;
+ 
+    e_config->device_desktop = cfdata->dbus.desktop;
+    if(e_config->device_desktop)
+@@ -200,6 +206,8 @@
+      (fileman_config->list.sort.dirs.first != cfdata->list.sort.dirs.first) ||
+      (fileman_config->list.sort.dirs.last != !(cfdata->list.sort.dirs.first)) ||
+      (fileman_config->list.sort.no_case != !(cfdata->list.sort.case_sen)) ||
++     (fileman_config->list.sort.type != cfdata->list.sort.type) ||
++     (fileman_config->list.sort.order != cfdata->list.sort.order) ||
+      (e_config->device_desktop != cfdata->dbus.desktop) ||
+      (e_config->device_auto_mount != cfdata->dbus.auto_mount) ||
+      (e_config->device_auto_open != cfdata->dbus.auto_open);
+@@ -251,6 +259,15 @@
+    ob = e_widget_check_add(evas, _("Sort Dirs First"),
+                            &(cfdata->list.sort.dirs.first));
+    e_widget_list_object_append(o, ob, 1, 1, 0.5);
++
++   ob = e_widget_check_add(evas, _("Sort By Type"),
++                           &(cfdata->list.sort.type));
++   e_widget_list_object_append(o, ob, 1, 1, 0.5);
++
++   ob = e_widget_check_add(evas, _("Arange Items Descending"),
++                           &(cfdata->list.sort.order));
++   e_widget_list_object_append(o, ob, 1, 1, 0.5);
++
+    ob = e_widget_check_add(evas, _("Case Sensitive"),
+                            &(cfdata->list.sort.case_sen));
+    e_widget_list_object_append(o, ob, 1, 1, 0.5);
+Index: e_mod_main.c
+===================================================================
+--- e_mod_main.c	(revision 60472)
++++ e_mod_main.c	(working copy)
+@@ -163,7 +163,7 @@
+       e_object_del(E_OBJECT(cfd));
+    while ((cfd = e_config_dialog_get("E", "fileman/fileman")))
+       e_object_del(E_OBJECT(cfd));
+-   
++
+    e_configure_registry_item_del("fileman/file_icons");
+    e_configure_registry_item_del("fileman/fileman");
+    e_configure_registry_category_del("fileman");
+@@ -451,6 +451,8 @@
+    E_CONFIG_VAL(D, T, icon.fixed.h, UCHAR);
+    E_CONFIG_VAL(D, T, icon.extension.show, UCHAR);
+    E_CONFIG_VAL(D, T, list.sort.no_case, UCHAR);
++   E_CONFIG_VAL(D, T, list.sort.type, UCHAR);
++   E_CONFIG_VAL(D, T, list.sort.order, UCHAR);
+    E_CONFIG_VAL(D, T, list.sort.dirs.first, UCHAR);
+    E_CONFIG_VAL(D, T, list.sort.dirs.last, UCHAR);
+    E_CONFIG_VAL(D, T, selection.single, UCHAR);
+@@ -512,6 +514,8 @@
+     fileman_config->icon.fixed.h = 0;
+     fileman_config->icon.extension.show = 1;
+     fileman_config->list.sort.no_case = 1;
++    fileman_config->list.sort.type = 0;
++    fileman_config->list.sort.order = 1;
+     fileman_config->list.sort.dirs.first = 1;
+     fileman_config->list.sort.dirs.last = 0;
+     fileman_config->selection.single = 0;
+Index: e_mod_main.h
+===================================================================
+--- e_mod_main.h	(revision 60472)
++++ e_mod_main.h	(working copy)
+@@ -19,10 +19,10 @@
+ #include "e_int_config_mime_edit.h"
+ #include "e_int_config_mime.h"
+ 
+-struct _Config 
++struct _Config
+ {
+    int config_version;
+-   
++
+    struct {
+       E_Fm2_View_Mode mode;
+       unsigned char   open_dirs_in_place;
+@@ -58,6 +58,8 @@
+    struct {
+       struct {
+ 	 unsigned char    no_case;
++    int    type;
++    int    order;
+ 	 struct {
+ 	    unsigned char first;
+ 	    unsigned char last;
