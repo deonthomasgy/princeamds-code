@@ -1,0 +1,139 @@
+Index: e_fm.c
+===================================================================
+--- e_fm.c	(revision 60472)
++++ e_fm.c	(working copy)
+@@ -938,6 +938,8 @@
+         sd->config->icon.fixed.h = EINA_TRUE;
+         sd->config->icon.extension.show = EINA_FALSE;
+         sd->config->list.sort.no_case = EINA_TRUE;
++        sd->config->list.sort.type = EINA_FALSE;
++        sd->config->list.sort.order = EINA_FALSE;
+         sd->config->list.sort.dirs.first = EINA_TRUE;
+         sd->config->list.sort.dirs.last = EINA_FALSE;
+         sd->config->selection.single = EINA_FALSE;
+@@ -3374,7 +3376,8 @@
+      /* insertion sort it here to spread the sort load into idle time */
+                     EINA_LIST_FOREACH(sd->queue, l, ic2)
+                       {
+-                         if (_e_fm2_cb_icon_sort(ic, ic2) < 0)
++                        if(ic->sd->config->list.sort.order ? (_e_fm2_cb_icon_sort(ic, ic2) > 0) :
++                           _e_fm2_cb_icon_sort(ic, ic2) < 0)
+                            {
+                               sd->queue = eina_list_prepend_relative_list(sd->queue, ic, l);
+                               break;
+@@ -7429,11 +7432,15 @@
+    if (ic2->info.label) l2 = (char *)ic2->info.label;
+    if (ic1->sd->config->list.sort.dirs.first)
+      {
+-        if ((S_ISDIR(ic1->info.statinfo.st_mode)) !=
++	   if ((S_ISDIR(ic1->info.statinfo.st_mode)) !=
+             (S_ISDIR(ic2->info.statinfo.st_mode)))
+           {
+-             if (S_ISDIR(ic1->info.statinfo.st_mode)) return -1;
+-             else return 1;
++		if (S_ISDIR(ic1->info.statinfo.st_mode))
++		     if(!ic1->sd->config->list.sort.order) return -1;
++		     else return 1;
++		else
++		     if(!ic1->sd->config->list.sort.order) return 1;
++		     else return -1;
+           }
+      }
+    else if (ic1->sd->config->list.sort.dirs.last)
+@@ -7441,10 +7448,21 @@
+         if ((S_ISDIR(ic1->info.statinfo.st_mode)) !=
+             (S_ISDIR(ic2->info.statinfo.st_mode)))
+           {
+-             if (S_ISDIR(ic1->info.statinfo.st_mode)) return 1;
+-             else return -1;
++		if (S_ISDIR(ic1->info.statinfo.st_mode))
++		     if(!ic1->sd->config->list.sort.order) return 1;
++		     else return -1;
++		else
++		     if(!ic1->sd->config->list.sort.order) return -1;
++		     else return 1;
+           }
+      }
++
++	if (ic1->sd->config->list.sort.type)
++	{
++		if (!strcmp(ic1->info.mime,ic2->info.mime) == 0)
++		return strcmp(ic1->info.mime,ic2->info.mime);
++	}
++
+    if (ic1->sd->config->list.sort.no_case)
+      {
+         char buf1[4096], buf2[4096], *p;
+@@ -7458,19 +7476,46 @@
+            eina_strlcpy(buf1, l1, sizeof(buf1));
+            eina_strlcpy(buf2, l2, sizeof(buf2));
+         }
+-        p = buf1;
+-        while (*p)
+-          {
+-             *p = tolower(*p);
+-             p++;
+-          }
+-        p = buf2;
+-        while (*p)
+-          {
+-             *p = tolower(*p);
+-             p++;
+-          }
+-        return strcmp(buf1, buf2);
++	p = buf1;
++	while (*p)
++	{
++		*p = tolower(*p);
++		p++;
++	}
++	p = buf2;
++	while (*p)
++	{
++		*p = tolower(*p);
++		p++;
++	}
++	// Sort by name and mime by PrinceAMD
++	if (ic1->sd->config->list.sort.type)
++	{
++		int h1, h2;
++
++		h1 = !strncmp(buf1,".",1);
++		h2 = !strncmp(buf2,".",1);
++
++		//This config does . Hiddem files and Mime sorting
++		if(!strcmp(ic1->info.mime, ic2->info.mime) == 0 &&
++				(h1 && h2) == 0)
++			return strcmp(buf1, buf2);
++
++		//This config does Mime + Text sorting
++		if(!strcmp(ic1->info.mime, ic2->info.mime) == 0 &&
++				!strcmp(buf1, buf2) == 0)
++			return 1;
++		else if (!strcmp(ic1->info.mime, ic2->info.mime) == 1 &&
++				!strcmp(buf1, buf2) == 0)
++			return strcmp(buf1, buf2);
++		else if (!strcmp(ic1->info.mime, ic2->info.mime) == 0 &&
++				!strcmp(buf1, buf2) == 1)
++			return strcmp(ic1->info.mime, ic2->info.mime);
++		else if (!strcmp(ic1->info.mime, ic2->info.mime) == 1 &&
++				!strcmp(buf1, buf2) == 1)
++			return -1;
++	}
++	return strcmp(buf1, buf2);
+      }
+    return strcmp(l1, l2);
+ }
+Index: e_fm.h
+===================================================================
+--- e_fm.h	(revision 60472)
++++ e_fm.h	(working copy)
+@@ -86,6 +86,8 @@
+    struct {
+       struct {
+ 	 Eina_Bool no_case : 1;
++	 Eina_Bool type : 1; //sorts by mime type
++	 Eina_Bool order : 1; // sort by ascending or descending
+ 	 struct {
+ 	    Eina_Bool first : 1;
+ 	    Eina_Bool last : 1;

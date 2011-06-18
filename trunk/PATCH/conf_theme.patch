@@ -1,0 +1,387 @@
+Index: e_mod_main.c
+===================================================================
+--- e_mod_main.c	(revision 60472)
++++ e_mod_main.c	(working copy)
+@@ -17,6 +17,43 @@
+      "Settings - Theme"
+ };
+ 
++static E_Config_DD *conf_edd = NULL;
++static E_Config_DD *conf_item_edd = NULL;
++Config *wall_conf = NULL;
++
++static void
++_wall_conf_new(void)
++{
++   char buf[128];
++
++   wall_conf = E_NEW(Config, 1);
++   wall_conf->version = (MOD_CONFIG_FILE_EPOCH << 16);
++
++#define IFMODCFG(v) if ((wall_conf->version & 0xffff) < v) {
++#define IFMODCFGEND }
++
++   /* setup defaults */
++   IFMODCFG(0x008d);
++   wall_conf->seconds = 0;
++   wall_conf->minuites = 10;
++   wall_conf->hours = 0;
++   wall_conf->days = 0;
++   wall_conf->shuffle = 0;
++   wall_conf->total_time = wall_conf->minuites * 60;
++   wall_conf->interval = 0;
++   wall_conf->old_bg = NULL;
++  // _skel_conf_item_get(NULL);
++   IFMODCFGEND;
++
++   /* update the version */
++   wall_conf->version = MOD_CONFIG_FILE_VERSION;
++
++   /* setup limits on the config properties here (if needed) */
++
++   /* save the config to disk */
++   e_config_save_queue();
++}
++
+ EAPI void *
+ e_modapi_init(E_Module *m)
+ {
+@@ -67,8 +104,38 @@
+      e_int_menus_menu_augmentation_add_sorted("config/1", _("Theme"), 
+                                               _e_mod_menu_theme_add, NULL, NULL, NULL);
+ 
++   conf_edd = E_CONFIG_DD_NEW("Config", Config);
++   #undef T
++   #undef D
++   #define T Config
++   #define D conf_edd
++   E_CONFIG_VAL(D, T, version, INT);
++   E_CONFIG_VAL(D, T, seconds, INT);
++   E_CONFIG_VAL(D, T, minuites, INT);
++   E_CONFIG_VAL(D, T, hours, INT);
++   E_CONFIG_VAL(D, T, days, INT);
++   E_CONFIG_VAL(D, T, interval, INT);
++   E_CONFIG_VAL(D, T, total_time, INT);
++   E_CONFIG_VAL(D, T, shuffle, INT);
++   E_CONFIG_VAL(D, T, old_bg, STR);
++
++   wall_conf = e_config_domain_load("module.wallpaper", conf_edd);
++   if (wall_conf)
++   {
++       if ((wall_conf->version >> 16) < MOD_CONFIG_FILE_EPOCH)
++       {
++           E_FREE(wall_conf);
++       }
++       else if (wall_conf->version > MOD_CONFIG_FILE_VERSION)
++       {
++           E_FREE(wall_conf);
++       }
++   }
++   if (!wall_conf) _wall_conf_new();
++
+    conf_module = m;
+    e_module_delayed_set(m, 1);
++   wall_conf->timer = ecore_timer_loop_add(1.00,_ecore_timer_cb, wall_conf);
+    return m;
+ }
+ 
+@@ -77,6 +144,9 @@
+ {
+    E_Config_Dialog *cfd;
+ 
++
++   if(wall_conf->timer)
++       ecore_timer_del(wall_conf->timer);
+    /* remove module-supplied menu additions */
+    if (maug[0])
+      {
+@@ -129,17 +199,13 @@
+    e_configure_registry_item_del("appearance/borders");
+    e_configure_registry_item_del("internal/wallpaper_desk");
+    e_configure_registry_category_del("internal");
+-   
++
+    conf_module = NULL;
++   E_FREE(wall_conf);
++   E_CONFIG_DD_FREE(conf_edd);
+    return 1;
+ }
+ 
+-EAPI int
+-e_modapi_save(E_Module *m __UNUSED__)
+-{
+-   return 1;
+-}
+-
+ /* menu item add hook */
+ static void
+ _e_mod_run_wallpaper_cb(void *data __UNUSED__, E_Menu *m, E_Menu_Item *mi __UNUSED__)
+@@ -174,3 +240,11 @@
+    e_util_menu_item_theme_icon_set(mi, "preferences-desktop-theme");
+    e_menu_item_callback_set(mi, _e_mod_run_theme_cb, NULL);
+ }
++
++EAPI int
++e_modapi_save(E_Module *m)
++{
++   e_config_domain_save("module.wallpaper", conf_edd, wall_conf);
++   return 1;
++}
++
+Index: e_int_config_wallpaper.c
+===================================================================
+--- e_int_config_wallpaper.c	(revision 60472)
++++ e_int_config_wallpaper.c	(working copy)
+@@ -41,7 +41,15 @@
+    Evas_Object *o_personal;
+    Evas_Object *o_system;
+    int fmdir, use_theme_bg;
++   int shuffle;
++   int interval;
++   int seconds;
++   int minuites;
++   int hours;
++   int days;
++   int total_time;
+    char *bg;
++   char *old_bg;
+ 
+    /* advanced */
+    int all_this_desk_screen;
+@@ -345,6 +353,14 @@
+    const E_Config_Desktop_Background *cfbg;
+    char path[PATH_MAX];
+ 
++   cfdata->seconds = wall_conf->seconds;
++   cfdata->minuites = wall_conf->minuites;
++   cfdata->hours = wall_conf->hours;
++   cfdata->days = wall_conf->days;
++   cfdata->interval = wall_conf->interval;
++   cfdata->total_time = wall_conf->total_time;
++   cfdata->shuffle = wall_conf->shuffle;
++
+    cw = cfdata->cfd->data;
+    if (cw->specific_config)
+      {
+@@ -558,8 +574,8 @@
+ static Evas_Object *
+ _adv_create(E_Config_Dialog *cfd, Evas *evas, E_Config_Dialog_Data *cfdata)
+ {
+-   Evas_Object *o, *rt, *ot;
+-   Evas_Object *ow, *of, *oa;
++   Evas_Object *o, *rt, *ot, *ct;
++   Evas_Object *ow, *of, *oa, *oc;
+    E_Zone *zone = NULL;
+    E_Radio_Group *rg;
+    char path[PATH_MAX];
+@@ -641,6 +657,8 @@
+    e_widget_preview_edje_set(ow, f, "e/desktop/background");
+    e_widget_aspect_child_set(oa, ow);
+    e_widget_table_object_append(ot, oa, 0, 2, 2 + online, 1, 1, 1, 1, 1);
++   evas_object_show(ow);
++   evas_object_show(oa);
+ 
+    rg = e_widget_radio_group_new(&(cfdata->all_this_desk_screen));
+    of = e_widget_frametable_add(evas, _("Where to place the Wallpaper"), 0);
+@@ -653,13 +671,110 @@
+ 	 (e_util_container_zone_number_get(1, 0))))
+      e_widget_disabled_set(ow, 1);
+    e_widget_frametable_object_append(of, ow, 0, 2, 1, 1, 1, 0, 1, 0);
+-   e_widget_table_object_append(ot, of, 0, 3, 2 + online, 1, 1, 1, 1, 0);
++   e_widget_table_object_append(ot, of, 0, 3, 1 + online, 1, 1, 1, 1, 0);
+ 
++   ct = e_widget_frametable_add(evas, _("How often to change Wallpaper"), 0);
++
++   oc = e_widget_check_add(evas, _("Shuffle Images"), &(cfdata->shuffle));
++   e_widget_frametable_object_append(ct, oc, 0, 0, 1, 1, 1, 0, 1, 0);
++
++   ow = e_widget_slider_add(evas, 1, 0, _("%2.0f Seconds"), 0, 60.0, 1.0, 0,
++                            NULL, &(cfdata->seconds), 100);
++   e_widget_frametable_object_append(ct, ow, 0, 1, 1, 1, 1, 0, 1, 0);
++
++    ow = e_widget_slider_add(evas, 1, 0, _("%2.0f Minuites"), 0, 60.0, 1.0, 0,
++                            NULL, &(cfdata->minuites), 100);
++   e_widget_frametable_object_append(ct, ow, 0, 2, 1, 1, 1, 0, 1, 0);
++
++    ow = e_widget_slider_add(evas, 1, 0, _("%2.0f Hours"), 0, 24.0, 1.0, 0,
++                            NULL, &(cfdata->hours), 100);
++    e_widget_frametable_object_append(ct, ow, 1, 1, 1, 1, 1, 0, 1, 0);
++
++    ow = e_widget_slider_add(evas, 1, 0, _("%2.0f Days"), 0, 31, 1.0, 0,
++                            NULL, &(cfdata->days), 100);
++   e_widget_frametable_object_append(ct, ow, 1, 2, 1, 1, 1, 0, 1, 0);
++
++   e_widget_table_object_append(ot, ct, 2, 3, 0 + online, 1, 1, 1, 1, 0);
++
+    e_widget_list_object_append(o, ot, 1, 1, 0.5);
+    e_dialog_resizable_set(cfd->dia, 1);
+    return o;
+ }
+ 
++static void
++_wallpaper_grabber(void *data)
++{
++    Config *cfdata;
++    cfdata = data;
++    Evas_Object *o;
++    Eina_List *list, *l;
++    char *file, path[PATH_MAX],buf[PATH_MAX], *r_file;
++    int sel, count, r;
++    const char *bg, *bg_name;
++
++    sel = 0;
++    e_user_dir_concat_static(path, "backgrounds");
++    bg = e_config->desktop_default_background;
++    bg_name = ecore_file_file_get(bg);
++    list = ecore_file_ls(path);
++    count = eina_list_count(list);
++    r = rand() % count;
++    EINA_LIST_FOREACH(list, l, file)
++    {
++        if(cfdata->shuffle == 1)
++        {
++            if(sel == r)
++            {
++                r_file = file;
++                break;
++            }
++            sel++;
++            continue;
++        }
++
++        if(sel == 0)
++        {
++            r_file = file;
++            sel = 2;
++        }
++        if(sel == 1)
++        {
++            r_file = file;
++            break;
++        }
++        if(!strcmp(bg_name,file))
++        {
++            sel = 1;
++        }
++           }
++    eina_list_free(list);
++    snprintf(buf, sizeof(buf), "%s/%s", path, r_file);
++    e_bg_default_set(buf);
++    e_bg_update();
++    cfdata->old_bg = r_file;
++}
++
++Eina_Bool _ecore_timer_cb(void *data)
++{
++    Config *cfdata;
++    cfdata = data;
++    const char *bg;
++    bg = e_config->desktop_default_background;
++
++    if(cfdata->total_time == 0)
++        return EINA_TRUE;
++
++    if(cfdata->interval == cfdata->total_time)
++    {
++        cfdata->interval = 0;
++        _wallpaper_grabber(cfdata);
++        e_config_save_queue();
++    }
++    if(cfdata->interval > cfdata->total_time)
++        cfdata->interval = 0;
++    cfdata->interval++;
++}
++
+ static int
+ _adv_apply(E_Config_Dialog *cfd __UNUSED__, E_Config_Dialog_Data *cfdata)
+ {
+@@ -725,6 +840,28 @@
+ 	  }
+      }
+    e_bg_update();
++
++   wall_conf->shuffle = cfdata->shuffle;
++   wall_conf->seconds = cfdata->seconds; 
++   wall_conf->minuites = cfdata->minuites;
++   wall_conf->hours = cfdata->hours;
++   wall_conf->days = cfdata->days;
++   wall_conf->old_bg = cfdata->bg;
++   
++   int val = 0;
++   if(cfdata->seconds)
++       val += cfdata->seconds;
++   if(cfdata->minuites)
++       val += cfdata->minuites * 60;
++   if(cfdata->hours)
++       val += cfdata->hours * 3600;
++   if(cfdata->days)
++       val += cfdata->days * 86400;
++
++//   if((cfdata->total_time != val) && (cfdata->interval != 0))
++       wall_conf->interval = 0;
++   wall_conf->total_time = val;
++
+    e_config_save_queue();
+    return 1;
+ }
+Index: e_mod_main.h
+===================================================================
+--- e_mod_main.h	(revision 60472)
++++ e_mod_main.h	(working copy)
+@@ -1,6 +1,8 @@
+ #ifndef E_MOD_MAIN_H
+ #define E_MOD_MAIN_H
+ 
++#define D_(str) dgettext(PACKAGE, str)
++
+ #define E_TYPEDEFS 1
+ #include "e_int_config_borders.h"
+ #include "e_int_config_color_classes.h"
+@@ -33,10 +35,34 @@
+ #include "e_int_config_wallpaper_import.h"
+ #include "e_int_config_wallpaper_web.h"
+ 
++#define MOD_CONFIG_FILE_EPOCH 0x0001
++#define MOD_CONFIG_FILE_GENERATION 0x008d
++#define MOD_CONFIG_FILE_VERSION \
++   ((MOD_CONFIG_FILE_EPOCH << 16) | MOD_CONFIG_FILE_GENERATION)
++
++
++typedef struct _Config Config;
++
++struct _Config
++{
++   Eina_List *conf_items;
++   int version;
++   int shuffle;
++   int seconds;
++   int minuites;
++   int hours;
++   int days;
++   long int interval;
++   long int total_time;
++   char *old_bg;
++   Ecore_Timer *timer;
++};
++
+ EAPI extern E_Module_Api e_modapi;
+ 
+ EAPI void *e_modapi_init     (E_Module *m);
+ EAPI int   e_modapi_shutdown (E_Module *m);
+ EAPI int   e_modapi_save     (E_Module *m);
+ 
++extern Config *wall_conf;
+ #endif
+Index: e_int_config_wallpaper.h
+===================================================================
+--- e_int_config_wallpaper.h	(revision 60472)
++++ e_int_config_wallpaper.h	(working copy)
+@@ -11,5 +11,8 @@
+ void e_int_config_wallpaper_import_done(E_Config_Dialog *dia);
+ void e_int_config_wallpaper_web_done(E_Config_Dialog *dia);
+ 
++Eina_Bool _ecore_timer_cb(void *data);
++static void _wallpaper_grabber(void *data);
++
+ #endif
+ #endif
