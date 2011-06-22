@@ -1,40 +1,30 @@
 #!/bin/bash
-for m in {0..1}
+for m in {0..6}
 do
     NUM=$(/bin/date -d "now - $((m+0)) months" "+%m-%Y")
 
-#NUM=$1
-#GAL_ID=823
-
 echo $NUM >> kindgirls.log
-#wget -c http://www.kindgirls.com/archive/
 wget -c   http://www.kindgirls.com/photo-archive/$NUM
-GAL_ID=`cat $NUM |grep gallery |awk 'BEGIN { FS = "href=" } ; { print $2 }'  |awk 'BEGIN { FS = "src=\"/gal-" } ; { print $2 }' |awk 'BEGIN { FS = "/" } ; { print $1 }' |head -1`
-GirlGallery=`cat $NUM |grep gallery |awk 'BEGIN { FS = "href=" } ; { print $2 }'  |awk 'BEGIN { FS = " " } ; { print $1 }' |awk 'BEGIN { FS = " " } ; { print $1 }' | sed s/\"/\/g `
-site="http://www.kindgirls.com"	
+GirlGallery=`cat $NUM |grep gallery |awk 'BEGIN { FS = "href=" } ; { print $2 }' |awk 'BEGIN { FS = " " } ; { print $1 }' |sed s/\"//g |sed 's/\\///'`
+site="http://www.kindgirls.com"
 	for img in ${GirlGallery}
 	do
-		echo $img
+		echo $NUM
 		for gallery in $img
 		do
-			NAMES=`curl -s $site$gallery |grep photo2 |awk 'BEGIN { FS = "href=" } ; { print $2 }'|awk 'BEGIN { FS = "src=" } ; { print $1 }' |awk 'BEGIN { FS = "><img" } ; { print $1 }' | sed s/\'/\/g`
-			X=`echo $NAMES | sed 's/ /\n/g' |awk 'BEGIN { FS = "/" } ; { print $7 }' | head -1`
-			Y=`echo $NAMES | sed 's/ /\n/g' |awk 'BEGIN { FS = "/" } ; { print $7 }' | tac | head -1`
-			echo $gallery
+         echo $site$gallery
+         NAMES=`curl -s $site/$gallery |grep gallery_list |awk 'BEGIN { FS = "href=" } ; { print $3 }'|awk 'BEGIN { FS = " " } ; { print $1 }' |sed s/\"//g |sed 's/\\///'`
 			for LON in $NAMES
 			do
-				DIR=`echo $gallery |awk 'BEGIN { FS = "/" } ; { print $4 }'`
+            echo $LON
+				DIR=`echo $LON |awk 'BEGIN { FS = "/" } ; { print $2 }'`
 				mkdir $DIR &>/dev/null
-				while [ $X -le $Y ];do
-					echo http://www.kindgirls.com/gal-$GAL_ID/$DIR/${DIR}_$X.jpg 
-					/usr/bin/wget -c -q http://www.kindgirls.com/gal-$GAL_ID/$DIR/${DIR}_$X.jpg -O $DIR/${DIR}_$X.jpg &
-					#cp -a ${DIR}_$X.jpg $DIR
-					echo ${DIR}_$X.jpg $DIR >>kg_logs
-					X=$((X+1))
+            echo $site/$LON
+            wget -c --limit-rate=25k $site/$LON --directory-prefix=`pwd`/$DIR
+            echo $LON $DIR >>kg_logs-2.0.log
 				done
 				wait
 			done
 		done
 	done
-	#NUM=$((NUM+1))
 done
