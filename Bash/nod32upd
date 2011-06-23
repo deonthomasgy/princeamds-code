@@ -1,0 +1,155 @@
+#!/opt/bin/bash
+
+##############################################
+# CONFIGURATION
+##############################################
+# system paths
+WGET="/opt/bin/wget"
+UNRAR="/opt/bin/unrar"
+PS="/bin/ps"
+MV="/bin/mv"
+RM="/bin/rm"
+MD5="/usr/bin/md5sum"
+
+# temporary path, must exist and be writeable
+TMP="/tmp"
+
+# recheck completion of every datafile each execution :  0 - faster-behaves like NOD32, 1 - safer-for unstable networks
+force_check="0"
+
+# clean-up old unused files :  0 - disable, 1 - enable-saves disk space
+clean_unused="0"
+
+# u21 - Prague :)
+SERVERURL="update.eset.com"
+
+# Local shared folder
+BASE="/opt/share/www"
+
+# What to append to BASE path to each version [different path of update URL]
+BASEv3="$BASE/eset_upd"
+
+# Username and password sent to you by e-mail from ESET
+USER="ENTER USERNAME"
+PASS="ENTER PASSWORD "
+
+##############################################
+# DO NOT EDIT BELOW THIS LINE
+##############################################
+
+# Functions, pre-checks
+SERVERv3="http://$SERVERURL/eset_upd/"
+
+function err_disp {
+ if [ $? = 0 ];then
+:
+ else
+  echo $1
+  exit 0
+ fi
+ }
+
+
+if [ -f $TMP/nod32list ];then
+   $RM -f $TMP/nod32list
+   err_disp 'Failed while deleting old file'
+fi
+
+
+if [ -f $TMP/v3.ver ];then
+   $RM -f $TMP/v3.ver
+   err_disp 'Failed while deleting old file'
+fi
+
+ ${PS} aux|grep wget|grep "$SERVERURL" >/dev/null 2>&1
+ if [ $? = 0 ];then
+    kill `ps aux|grep wget|grep "$SERVERURL"|awk '{print $2}'`
+    err_disp 'Failed while killing process'
+ fi
+
+ if [ ! -d ${BASEv3} ];then
+    mkdir -p ${BASEv3}
+    err_disp 'Failed while creating nod32 base home directiory v3'
+ fi
+
+# Downloading the informational update files
+$WGET -c -t 9 -T 9 -nH -q -nd -O $TMP/v3.ver $SERVERv3/update.ver
+err_disp 'Failed while downloading update.ver v3'
+
+if [ ! "$force_check" = "1" ]; then
+	MD5v3=$($MD5 $TMP/v3.ver | cut -b 1-32)
+	MD5o=$($MD5 $BASEv3/update.ver | cut -b 1-32)
+	if [ $MD5v3 == $MD5o ];then
+		exit 0
+		fi
+	fi
+
+$MV -f $TMP/v3.ver $TMP/v3.rar
+$UNRAR x -y -inul $TMP/v3.rar $TMP/
+
+cat $TMP/update.ver |grep ".nup" |grep enu |grep eav_  >> $TMP/nod32list
+cat $TMP/update.ver |grep ".nup" |grep engine3/  >> $TMP/nod32list
+sed -i 's/file=//g' /tmp/nod32list
+
+$RM $TMP/update.ver
+
+# Downloading the data files, adding/updating differences
+$WGET --http-user=$USER --http-passwd=$PASS -N -t 9 -T 9 -nH  $BASE --input-file=$TMP/nod32list -B "http://$SERVERURL" -P $BASEv3
+$MV $TMP/v3.rar $BASEv3/update.ver
+
+# Cleaning old NUP datafiles
+if [ "$clean_unused" = "1" ]; then
+
+	if [ ! -f $TMP/nod32list ]; then
+		exit 0
+		fi
+
+	ARY=(`cat "$TMP/nod32list" | tr '\r' ' ' | tr '\n' ' '`)
+
+	if [ "${#ARY[@]}" -lt "10" ]; then
+		exit 0
+		fi
+
+	EFS=( )
+
+	filelist=`ls -1R "$BASE"`
+	de=${#BASE}
+		for s in $filelist; do
+		if [ "${s:(-1)}" = ":" ]; then
+	        cdir=${s:($de)}
+		    cdir=${cdir:0:(${#cdir}-1)}
+			else
+			ext=${s:(-4)}
+			if [ "$ext" = ".nup" ]; then
+			    EFS=( "${EFS[@]}" "$cdir/$s" )
+			    fi
+			fi
+		done
+
+	# echo "Existing files: ${#EFS[@]}\nUplink files: ${#ARY[@]}\nCleaning..."
+
+	if [ "${#EFS[@]}" -lt "10" ]; then
+		exit 0
+		fi
+
+	function FindInArray {
+		FOUND=0
+		for s in ${ARY[@]}; do
+			if [ "$s" = "$1" ]; then
+				FOUND=1
+				break
+				fi
+			done
+		echo "$FOUND"
+		}
+
+	for s in ${EFS[@]}; do
+		FOUND=`FindInArray $s`
+		if [ "$FOUND" = "0" ]; then
+			rm "$BASE$s"
+			fi
+		done
+
+	fi
+
+$RM -f $TMP/nod32list
