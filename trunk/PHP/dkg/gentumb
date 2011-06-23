@@ -1,0 +1,19 @@
+#!/bin/bash
+
+list=`cat list3 |sed -e 's/ /+/g'`
+
+for i in $list
+do
+	l=`echo $i |sed 's/+/ /g'`
+	size=`echo $l |awk 'BEGIN { FS =" " } ; { print $3 }' `
+	image=`echo $l |awk 'BEGIN { FS =" " } ; { print $4 }' `
+	thumb=`echo $l |awk 'BEGIN { FS =" " } ; { print $5 }' `
+	if [ ! -f $thumb ]
+	then
+		echo -n +
+		convert -geometry $size $image $thumb 
+	else
+		echo -n -
+	fi
+	
+done
