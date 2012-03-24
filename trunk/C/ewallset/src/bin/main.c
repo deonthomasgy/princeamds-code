@@ -366,7 +366,7 @@ ewallset_main()
 	e->quality = 90;
 	sl = elm_slider_add(e->win);
 	elm_slider_indicator_show_set(sl, EINA_FALSE);
-	elm_slider_label_set(sl, "Quality");
+	elm_object_text_set(sl, "Quality");
 	elm_slider_unit_format_set(sl, "%1.0f Percent");
 	elm_slider_span_size_set(sl, 250);
 	elm_slider_min_max_set(sl, 10, 100);
@@ -378,18 +378,18 @@ ewallset_main()
 	evas_object_show(sl);
 
 	frame = elm_frame_add(e->win);
-	elm_frame_label_set(frame,"Where to place this Wallpaper");
+	elm_object_text_set(frame,"Where to place this Wallpaper");
 	elm_object_style_set(frame,"outdent_bottom");
 	elm_box_pack_end(bx, frame);
 	evas_object_show(frame);
 	
 	bx3 = elm_box_add(e->win);
 	elm_box_horizontal_set(bx3, 1);
-	elm_frame_content_set(frame,bx3);
+	elm_object_content_set(frame,bx3);
 	
 	rd = elm_radio_add(e->win);
 	elm_radio_state_value_set(rd, 0);
-	elm_radio_label_set(rd, "All Desktops");
+	elm_object_text_set(rd, "All Desktops");
 	evas_object_smart_callback_add(rd, "changed", desk_changed,e->rdg);
 	elm_box_pack_end(bx3, rd);
 	evas_object_show(rd);
@@ -398,7 +398,7 @@ ewallset_main()
 	rd = elm_radio_add(e->win);
 	elm_radio_state_value_set(rd, 1);
 	elm_radio_group_add(rd, e->rdg);
-	elm_radio_label_set(rd, "This Desktop");
+	elm_object_text_set(rd, "This Desktop");
 	evas_object_smart_callback_add(rd, "changed", desk_changed,e->rdg);
 	elm_box_pack_end(bx3, rd);
 	evas_object_show(rd);
@@ -406,7 +406,7 @@ ewallset_main()
 	rd = elm_radio_add(e->win);
 	elm_radio_state_value_set(rd, 2);
 	elm_radio_group_add(rd, e->rdg);
-	elm_radio_label_set(rd, "This Screen");
+	elm_object_text_set(rd, "This Screen");
 	evas_object_smart_callback_add(rd, "changed", desk_changed,e->rdg);
 	elm_box_pack_end(bx3, rd);
 	evas_object_show(rd);
@@ -415,20 +415,20 @@ ewallset_main()
 	
 	
 	frame = elm_frame_add(e->win);
-	elm_frame_label_set(frame,"Fill and Stretch Options");
+	elm_object_text_set(frame,"Fill and Stretch Options");
 	elm_object_style_set(frame,"outdent_top");
 	elm_box_pack_end(bx, frame);
 	evas_object_show(frame);
 	
 	bx3 = elm_box_add(e->win);
 	elm_box_horizontal_set(bx3, 1);
-	elm_box_homogenous_set(bx3, 1);
-	elm_frame_content_set(frame,bx3);
+    elm_box_homogeneous_set(bx3, EINA_TRUE);
+	elm_object_content_set(frame,bx3);
 	evas_object_show(bx3);
 	
 	rd = elm_radio_add(e->win);
 	elm_radio_state_value_set(rd, IMPORT_STRETCH);
-	elm_radio_label_set(rd, "Stretch");
+	elm_object_text_set(rd, "Stretch");
 	evas_object_smart_callback_add(rd, "changed", selection_changed,rdg);
 	elm_box_pack_end(bx3, rd);
 	evas_object_show(rd);
@@ -437,7 +437,7 @@ ewallset_main()
 	rd = elm_radio_add(e->win);
 	elm_radio_state_value_set(rd, IMPORT_TILE);
 	elm_radio_group_add(rd, rdg);
-	elm_radio_label_set(rd, "Tile");
+	elm_object_text_set(rd, "Tile");
 	evas_object_smart_callback_add(rd, "changed", selection_changed,rdg);
 	elm_box_pack_end(bx3, rd);
 	evas_object_show(rd);
@@ -445,7 +445,7 @@ ewallset_main()
 	rd = elm_radio_add(e->win);
 	elm_radio_state_value_set(rd, IMPORT_CENTER);
 	elm_radio_group_add(rd, rdg);
-	elm_radio_label_set(rd, "Center");
+	elm_object_text_set(rd, "Center");
 	evas_object_smart_callback_add(rd, "changed", selection_changed,rdg);
 	elm_box_pack_end(bx3, rd);
 	evas_object_show(rd);
@@ -453,7 +453,7 @@ ewallset_main()
 	rd = elm_radio_add(e->win);
 	elm_radio_state_value_set(rd, IMPORT_SCALE_ASPECT_IN);
 	elm_radio_group_add(rd, rdg);
-	elm_radio_label_set(rd, "Within");
+	elm_object_text_set(rd, "Within");
 	evas_object_smart_callback_add(rd, "changed", selection_changed,rdg);
 	elm_box_pack_end(bx3, rd);
 	evas_object_show(rd);
@@ -461,7 +461,7 @@ ewallset_main()
 	rd = elm_radio_add(e->win);
 	elm_radio_state_value_set(rd, IMPORT_SCALE_ASPECT_OUT);
 	elm_radio_group_add(rd, rdg);
-	elm_radio_label_set(rd, "Fill");
+	elm_object_text_set(rd, "Fill");
 	evas_object_smart_callback_add(rd, "changed", selection_changed,rdg);
 	elm_box_pack_end(bx3, rd);
 	evas_object_show(rd);
@@ -469,7 +469,7 @@ ewallset_main()
 	rd = elm_radio_add(e->win);
 	elm_radio_state_value_set(rd, IMPORT_SCALE_ASPECT_IN_TILE);
 	elm_radio_group_add(rd, rdg);
-	elm_radio_label_set(rd, "Tile-In");
+	elm_object_text_set(rd, "Tile-In");
 	evas_object_smart_callback_add(rd, "changed", selection_changed,rdg);
 	elm_box_pack_end(bx3, rd);
 	evas_object_show(rd);
@@ -478,15 +478,15 @@ ewallset_main()
 
 	bx2 = elm_box_add(e->win);
 	elm_box_horizontal_set(bx2, 1);
-	elm_box_homogenous_set(bx2, 1);
+	elm_box_homogeneous_set(bx2, EINA_TRUE);
 	elm_box_pack_end(bx, bx2);
 	evas_object_show(bx2);
 	
 	ic = elm_icon_add(e->win);
 	elm_icon_file_set(ic, "/usr/share/ewallset/data/dialog-ok.png", NULL);
 	bt = elm_button_add(bx2);
-	elm_button_label_set(bt, "Continue");
-	elm_button_icon_set(bt, ic);
+	elm_object_text_set(bt, "Continue");
+	//elm_button_icon_set(bt, ic);
 	evas_object_smart_callback_add(bt, "clicked", usr_click_ok, NULL);
 	elm_box_pack_end(bx2, bt);
 	evas_object_show(bt);
@@ -494,8 +494,8 @@ ewallset_main()
 	ic = elm_icon_add(e->win);
 	elm_icon_file_set(ic, "/usr/share/ewallset/data/dialog-cancel.png", NULL);
 	bt = elm_button_add(bx2);
-	elm_button_label_set(bt, "Cancel");
-	elm_button_icon_set(bt, ic);
+	elm_object_text_set(bt, "Cancel");
+	//elm_button_icon_set(bt, ic);
 	evas_object_smart_callback_add(bt, "clicked", usr_click_cancel, NULL);
 	elm_box_pack_end(bx2, bt);
 	evas_object_show(bt);
