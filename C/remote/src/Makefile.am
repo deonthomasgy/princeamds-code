@@ -16,7 +16,7 @@ module_la_DEPENDENCIES = $(top_builddir)/config.h
 
 bin_PROGRAMS = ermc
 ermc_SOURCES = ermc_client.c 
-ermc_LDADD = @E_DBUS_LIBS@ -lutil
+ermc_LDADD = @E_DBUS_LIBS@ -lutil -lecore_x -lecore -leina
 
 clean-local:
 	rm -rf *~
