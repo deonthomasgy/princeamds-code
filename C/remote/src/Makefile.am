@@ -15,8 +15,9 @@ module_la_LDFLAGS = -module -avoid-version
 module_la_DEPENDENCIES = $(top_builddir)/config.h
 
 bin_PROGRAMS = ermc
-ermc_SOURCES = ermc_client.c 
+ermc_SOURCES = ermc_client.c
 ermc_LDADD = @E_LIBS@
+ermc_DEPENDENCIES = $(top_builddir)/config.h
 
 clean-local:
 	rm -rf *~
