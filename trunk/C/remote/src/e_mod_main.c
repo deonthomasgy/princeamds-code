@@ -14,7 +14,7 @@ EAPI E_Module_Api e_modapi =
  * Module Functions
  */
 EAPI void *
-e_modapi_init(E_Module *m)
+e_modapi_init(E_Module *m __UNUSED__)
 {
     if(!remote_data)
         remote_data =  E_NEW(Remote_Data, 1);
@@ -30,7 +30,7 @@ e_modapi_init(E_Module *m)
  * Function to unload the module
  */
 EAPI int
-e_modapi_shutdown(E_Module *m)
+e_modapi_shutdown(E_Module *m __UNUSED__)
 {
    if (!(restart) && !(stopping))
       e_util_dialog_show( "Warning", "This module is NEEDED for Elive for misc things, you should NOT disable it or your system may work incorrectly");
@@ -56,7 +56,7 @@ e_modapi_shutdown(E_Module *m)
  * Function to Save the modules config
  */
 EAPI int
-e_modapi_save(E_Module *m)
+e_modapi_save(E_Module *m __UNUSED__)
 {
    return 1;
 }
@@ -64,7 +64,7 @@ e_modapi_save(E_Module *m)
 
 /*Intl Handlers*/
 static DBusMessage*
-_e_remote_get_intl_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_get_intl_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
   DBusMessageIter iter;
    DBusMessage *reply;
@@ -79,7 +79,7 @@ _e_remote_get_intl_cb(E_DBus_Object *obj, DBusMessage *msg)
    return reply;
 }
 static DBusMessage*
-_e_remote_set_intl_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_set_intl_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    const char *intl;
@@ -98,7 +98,7 @@ _e_remote_set_intl_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_list_intl_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_list_intl_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    Eina_List *l, *ll;
    const char *name;
@@ -106,13 +106,11 @@ _e_remote_list_intl_cb(E_DBus_Object *obj, DBusMessage *msg)
    DBusMessageIter iter;
    DBusMessageIter arr;
 
-    ll = e_intl_language_list();
-
    reply = dbus_message_new_method_return(msg);
    dbus_message_iter_init_append(reply, &iter);
    dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "s", &arr);
 
-   EINA_LIST_FOREACH(e_intl_language_list(), l, name)
+   EINA_LIST_FOREACH((Eina_List *)e_intl_language_list(), l, name)
      {
 	dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &name);
      }
@@ -123,7 +121,7 @@ _e_remote_list_intl_cb(E_DBus_Object *obj, DBusMessage *msg)
 
 /*Wallpaper Handlers*/
 static DBusMessage*
-_e_remote_set_wall_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_set_wall_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
 	DBusMessageIter iter;
 	char *bg;
@@ -146,7 +144,7 @@ _e_remote_set_wall_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_set_current_desktop_wall_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_set_current_desktop_wall_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
 	DBusMessageIter iter;
 	char *bg;
@@ -175,7 +173,7 @@ _e_remote_set_current_desktop_wall_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_get_wall_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_get_wall_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    DBusMessage *reply;
@@ -199,7 +197,7 @@ _e_remote_get_wall_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_default_get_wall_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_default_get_wall_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    DBusMessage *reply;
@@ -215,7 +213,7 @@ _e_remote_default_get_wall_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_del_wall_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_del_wall_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    int container, zone, desk_x, desk_y;
@@ -236,7 +234,7 @@ _e_remote_del_wall_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_add_wall_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_add_wall_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    DBusMessage *reply;
@@ -262,63 +260,63 @@ _e_remote_add_wall_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_core_hibernate_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_core_hibernate_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    e_sys_action_do(E_SYS_HIBERNATE, NULL);
    return dbus_message_new_method_return(msg);
 }
 
 static DBusMessage*
-_e_remote_core_suspend_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_core_suspend_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    e_sys_action_do(E_SYS_SUSPEND, NULL);
    return dbus_message_new_method_return(msg);
 }
 
 static DBusMessage*
-_e_remote_core_logout_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_core_logout_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    e_sys_action_do(E_SYS_LOGOUT, NULL);
    return dbus_message_new_method_return(msg);
 }
 
 static DBusMessage*
-_e_remote_core_reboot_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_core_reboot_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    e_sys_action_do(E_SYS_REBOOT, NULL);
    return dbus_message_new_method_return(msg);
 }
 
 static DBusMessage*
-_e_remote_core_halt_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_core_halt_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    e_sys_action_do(E_SYS_HALT, NULL);
    return dbus_message_new_method_return(msg);
 }
 
 static DBusMessage*
-_e_remote_core_halt_now_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_core_halt_now_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    e_sys_action_do(E_SYS_HALT_NOW, NULL);
    return dbus_message_new_method_return(msg);
 }
 
 static DBusMessage*
-_e_remote_core_lock_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_core_lock_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    //e_desklock_show();
    //return dbus_message_new_method_return(msg);
 }
 
 static DBusMessage*
-_e_remote_core_save_config_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_core_save_config_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    e_config_save();
    return dbus_message_new_method_return(msg);
 }
 
 static DBusMessage*
-_e_remote_set_theme_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_set_theme_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    char *category;
@@ -336,7 +334,7 @@ _e_remote_set_theme_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_get_theme_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_get_theme_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    DBusMessage *reply;
@@ -356,7 +354,7 @@ _e_remote_get_theme_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_list_theme_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_list_theme_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    Eina_List *l;
    E_Config_Theme *ect = NULL;
@@ -379,7 +377,7 @@ _e_remote_list_theme_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_get_framerate_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_get_framerate_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    DBusMessage *reply;
@@ -395,7 +393,7 @@ _e_remote_get_framerate_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_set_framerate_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_set_framerate_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    double frame;
@@ -411,7 +409,7 @@ _e_remote_set_framerate_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_get_scrollspeed_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_get_scrollspeed_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    DBusMessage *reply;
@@ -427,7 +425,7 @@ _e_remote_get_scrollspeed_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_set_scrollspeed_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_set_scrollspeed_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    double scrollspeed;
@@ -442,7 +440,7 @@ _e_remote_set_scrollspeed_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_get_focus_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_get_focus_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    DBusMessage *reply;
@@ -465,7 +463,7 @@ _e_remote_get_focus_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_set_focus_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_set_focus_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    DBusMessage *reply;
@@ -496,7 +494,7 @@ _e_remote_set_focus_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_get_font_cache_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_get_font_cache_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    DBusMessage *reply;
@@ -512,7 +510,7 @@ _e_remote_get_font_cache_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_set_font_cache_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_set_font_cache_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    int cache;
@@ -528,7 +526,7 @@ _e_remote_set_font_cache_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_get_image_cache_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_get_image_cache_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    DBusMessage *reply;
@@ -544,7 +542,7 @@ _e_remote_get_image_cache_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_set_image_cache_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_set_image_cache_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    double cache;
@@ -560,7 +558,7 @@ _e_remote_set_image_cache_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_get_edje_cache_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_get_edje_cache_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    DBusMessage *reply;
@@ -576,7 +574,7 @@ _e_remote_get_edje_cache_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_set_edje_cache_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_set_edje_cache_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    int cache;
@@ -592,7 +590,7 @@ _e_remote_set_edje_cache_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_get_edje_c_cache_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_get_edje_c_cache_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    DBusMessage *reply;
@@ -608,7 +606,7 @@ _e_remote_get_edje_c_cache_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_set_edje_c_cache_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_set_edje_c_cache_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    int cache;
@@ -624,7 +622,7 @@ _e_remote_set_edje_c_cache_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_core_execute_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_core_execute_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    DBusMessage *reply;
@@ -644,7 +642,7 @@ _e_remote_core_execute_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_list_user_theme_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_list_user_theme_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    Eina_List *l,*list;
    DBusMessage *reply;
@@ -669,7 +667,7 @@ _e_remote_list_user_theme_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_theme_add_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_theme_add_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    char *file,buf[1024];
@@ -683,7 +681,7 @@ _e_remote_theme_add_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_theme_del_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_theme_del_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    char *file,buf[1024];
@@ -697,7 +695,7 @@ _e_remote_theme_del_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_set_this_screen_wall_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_set_this_screen_wall_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    char *bg;
@@ -735,7 +733,7 @@ _e_remote_set_this_screen_wall_cb(E_DBus_Object *obj, DBusMessage *msg)
 }
 
 static DBusMessage*
-_e_remote_config_get_wall_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_config_get_wall_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
 	DBusMessageIter iter;
 	DBusMessage *reply;
@@ -780,7 +778,7 @@ _error_no_xrandr()
 };
 /*Get*/
 static DBusMessage*
-_e_remote_get_resolution_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_get_resolution_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    DBusMessage *reply;
@@ -811,7 +809,7 @@ _e_remote_get_resolution_cb(E_DBus_Object *obj, DBusMessage *msg)
 
 /*Set*/
 static DBusMessage*
-_e_remote_set_resolution_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_set_resolution_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
     DBusMessageIter iter;
     E_Manager *man;
@@ -835,7 +833,7 @@ return dbus_message_new_method_return(msg);
 
 /*List*/
 static DBusMessage*
-_e_remote_list_resolution_cb(E_DBus_Object *obj, DBusMessage *msg)
+_e_remote_list_resolution_cb(E_DBus_Object *obj __UNUSED__, DBusMessage *msg)
 {
    DBusMessageIter iter;
    DBusMessage *reply;

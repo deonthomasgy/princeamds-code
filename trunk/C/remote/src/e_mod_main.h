@@ -24,7 +24,7 @@ struct _Remote_Data
    E_DBus_Object     *obj;
 };
 
-extern int e_remote_init();
+static int e_remote_init();
 
 /**
  * @addtogroup Optional_Gadgets
