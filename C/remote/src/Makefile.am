@@ -3,7 +3,7 @@ MAINTAINERCLEANFILES = Makefile.in
 INCLUDES = -I. \
 	   -I$(top_srcdir) \
 	   -I$(includedir) \
-	   @E_CFLAGS@ @E_DBUS_CFLAGS@
+	   @E_CFLAGS@
 
 pkgdir = $(datadir)/$(MODULE_ARCH)
 pkg_LTLIBRARIES = module.la
@@ -16,7 +16,7 @@ module_la_DEPENDENCIES = $(top_builddir)/config.h
 
 bin_PROGRAMS = ermc
 ermc_SOURCES = ermc_client.c 
-ermc_LDADD = @E_DBUS_LIBS@ -lutil -lecore_x -lecore -leina
+ermc_LDADD = @E_LIBS@
 
 clean-local:
 	rm -rf *~
